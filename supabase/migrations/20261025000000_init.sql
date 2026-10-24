@@ -436,6 +436,29 @@ language sql stable set search_path = public, extensions as $$
   limit least(greatest(p_limit, 1), 800);
 $$;
 
+-- Tek yer (enlem/boylam ile)
+create or replace function public.get_place(p_id bigint)
+returns table (id bigint, source text, category text, name text, description text, tags jsonb, lat double precision, lng double precision,
+               province_code smallint, rating_avg numeric, rating_count int, checkin_count int, photo_count int, created_by uuid, created_at timestamptz)
+language sql stable set search_path = public, extensions as $$
+  select p.id, p.source, p.category, p.name, p.description, p.tags, ST_Y(p.geom::geometry), ST_X(p.geom::geometry),
+         p.province_code, p.rating_avg, p.rating_count, p.checkin_count, p.photo_count, p.created_by, p.created_at
+  from places p where p.id = p_id and p.status = 'active';
+$$;
+
+-- İsimle yer arama (yakındakiler önce)
+create or replace function public.search_places(p_q text, p_lat double precision default 39, p_lng double precision default 35, p_limit int default 20)
+returns table (id bigint, category text, name text, lat double precision, lng double precision, rating_avg numeric, rating_count int, tags jsonb, province text)
+language sql stable set search_path = public, extensions as $$
+  select p.id, p.category, p.name, ST_Y(p.geom::geometry), ST_X(p.geom::geometry), p.rating_avg, p.rating_count, p.tags, pv.name
+  from places p left join provinces pv on pv.code = p.province_code
+  where p.status = 'active' and char_length(trim(p_q)) >= 2
+    and lower(p.name) like '%' || lower(trim(p_q)) || '%'
+  order by (lower(p.name) like lower(trim(p_q)) || '%') desc,
+           p.geom <-> ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography
+  limit least(greatest(p_limit, 1), 50);
+$$;
+
 -- Rota üstündeki yerler. p_route: GeoJSON LineString. Sapma = gidiş-dönüş yaklaşık mesafe.
 create or replace function public.places_along_route(p_route jsonb, p_buffer_m int default 5000, p_categories text[] default null, p_limit int default 150)
 returns table (id bigint, category text, name text, lat double precision, lng double precision, rating_avg numeric, rating_count int,
@@ -884,6 +907,13 @@ begin
 end $$;
 create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
 
+-- Kayıt ekranı için: sadece evet/hayır döner, başka bilgi sızdırmaz
+create or replace function public.username_available(p_username text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select p_username ~ '^[a-z0-9_.]{3,24}$' and public.is_clean(p_username)
+     and not exists (select 1 from profiles where username = p_username);
+$$;
+
 create or replace function public.export_my_data() returns jsonb
 language sql stable security definer set search_path = public as $$
   select jsonb_build_object(
@@ -1005,6 +1035,9 @@ revoke execute on all functions in schema public from public, anon;
 grant execute on all functions in schema public to authenticated, service_role;
 grant execute on function public.places_in_bbox(double precision, double precision, double precision, double precision, text[], text[], int) to anon;
 grant execute on function public.province_shapes() to anon;
+grant execute on function public.get_place(bigint) to anon;
+grant execute on function public.search_places(text, double precision, double precision, int) to anon;
+grant execute on function public.username_available(text) to anon;
 -- Sadece içeride kullanılan fonksiyonlar
 revoke execute on function public.evaluate_badges(uuid) from authenticated;
 revoke execute on function public.nearby_candidates(uuid, double precision, double precision, int) from authenticated;

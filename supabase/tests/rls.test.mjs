@@ -67,6 +67,11 @@ rows = await as(A, () => q(`select * from services_near(41.0, 29.0, 'Ford', 'die
 ok(rows.length === 1 && rows[0].brand_match === true, "marka servisi bulunmalı");
 ok(await as(null, () => throws(() => q(`select * from places_along_route('{"type":"LineString","coordinates":[[28,41],[29,41]]}'::jsonb)`))), "anon rota sorgusu yapamamalı");
 
+rows = await as(null, () => q(`select * from get_place($1)`, [P1]));
+ok(rows.length === 1 && Math.abs(rows[0].lat - 41) < 1e-6 && Math.abs(rows[0].lng - 29) < 1e-6, "yer ayrıntısı enlem/boylam döner");
+rows = await as(null, () => q(`select * from search_places('kamp', 41.0, 29.0)`));
+ok(rows.length === 2 && rows[0].name === "Kamp A" && rows[0].province === "İstanbul", "isimle arama yakındakini önce getirir");
+
 // Check-in
 let r = (await as(A, () => q(`select check_in($1, 41.02, 29.0) r`, [P1])))[0].r;
 ok(r.ok === false && r.reason === "too_far", "150 m dışı check-in reddedilmeli");
@@ -193,6 +198,9 @@ ok((await q(`select geom_simple is not null ok from provinces where code = 6`))[
 ok((await q(`select backfill_place_provinces() n`))[0].n >= 0, "il doldurma");
 ok((await as(null, () => q(`select province_shapes() s`)))[0].s.features.length === 2, "il şekilleri anonim okunabilir");
 ok((await q(`select consume_api_quota($1, 'route', 2) a, consume_api_quota($1, 'route', 2) b, consume_api_quota($1, 'route', 2) c`, [B]))[0].c === false, "kota sınırı");
+
+ok((await as(null, () => q(`select username_available('cem') a, username_available('yeni_yolcu') b, username_available('AB') c`)))[0].b === true, "kullanıcı adı kontrolü");
+ok((await as(null, () => q(`select username_available('cem') a`)))[0].a === false, "alınmış kullanıcı adı");
 
 // anon yetkileri
 ok(await as(null, () => throws(() => q(`select * from profiles`))) || (await as(null, () => q(`select * from profiles`))).length === 0, "anon profilleri görmemeli");

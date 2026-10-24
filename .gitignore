@@ -41,3 +41,7 @@ example
 # generated native folders
 /ios
 /android
+
+# Expo tarafından üretilen yerel projeler (CNG)
+/android
+/ios
