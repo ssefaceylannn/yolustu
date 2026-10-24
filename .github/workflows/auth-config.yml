@@ -22,22 +22,31 @@ jobs:
         run: |
           SIGNUP='<h2>Yolüstü hesabını onayla</h2><p>Doğrulama kodun:</p><p style="font-size:32px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p><p>Bu kodu uygulamaya gir. Kod 1 saat geçerlidir. Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.</p><p style="color:#888">Your Yolüstü verification code is shown above.</p>'
           RECOVERY='<h2>Şifreni sıfırla</h2><p>Şifre sıfırlama kodun:</p><p style="font-size:32px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p><p>Bu kodu uygulamaya gir. Kod 1 saat geçerlidir. Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin; şifren değişmez.</p><p style="color:#888">Your Yolüstü password reset code is shown above.</p>'
-          jq -n --arg s "$SIGNUP" --arg r "$RECOVERY" '{
+          jq -n '{
             site_url: "yolustu://auth/callback",
             uri_allow_list: "yolustu://**",
             mailer_otp_exp: 3600,
-            mailer_otp_length: 6,
+            mailer_otp_length: 6
+          }' > base.json
+          jq -n --arg s "$SIGNUP" --arg r "$RECOVERY" '{
             mailer_subjects_confirmation: "Yolüstü doğrulama kodun",
             mailer_templates_confirmation_content: $s,
             mailer_subjects_recovery: "Yolüstü şifre sıfırlama kodun",
             mailer_templates_recovery_content: $r
           }' > body.json
-      - name: Uygula
+      - name: Yönlendirme ve kod ayarları
+        run: |
+          CODE=$(curl -sS -o resp.json -w "%{http_code}" -X PATCH \
+            "https://api.supabase.com/v1/projects/$REF/config/auth" \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @base.json)
+          echo "HTTP $CODE"
+          jq '{site_url, uri_allow_list, mailer_otp_exp, mailer_otp_length, message}' resp.json 2>/dev/null || head -c 300 resp.json
+          test "$CODE" -lt 300
+      - name: E-posta şablonları (kendi SMTP sunucusu gerekir)
         run: |
           CODE=$(curl -sS -o resp.json -w "%{http_code}" -X PATCH \
             "https://api.supabase.com/v1/projects/$REF/config/auth" \
             -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @body.json)
           echo "HTTP $CODE"
-          # Yanıtın sadece ilgili alanlarını göster (gizli bilgi yazdırma)
-          jq '{site_url, uri_allow_list, mailer_otp_exp, mailer_otp_length, mailer_subjects_confirmation, mailer_subjects_recovery, smtp_host, has_signup_template: (.mailer_templates_confirmation_content|tostring|contains("{{ .Token }}")), message, error}' resp.json 2>/dev/null || head -c 500 resp.json
+          jq '{mailer_subjects_confirmation, mailer_subjects_recovery, smtp_host, has_signup_template: (.mailer_templates_confirmation_content|tostring|contains("{{ .Token }}")), message}' resp.json 2>/dev/null || head -c 300 resp.json
           test "$CODE" -lt 300
