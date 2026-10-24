@@ -4,7 +4,8 @@ export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_DYyLfiyBMJsK_k2BJ-RQ5A_8
 
 // Harita karoları (OpenStreetMap verisi, OpenFreeMap sunucusu)
 export const MAP_STYLE_LIGHT = "https://tiles.openfreemap.org/styles/liberty";
-export const MAP_STYLE_DARK = "https://tiles.openfreemap.org/styles/dark";
+// OpenFreeMap'in koyu stili henüz tamamlanmadığı için koyu temada da Liberty kullanılır
+export const MAP_STYLE_DARK = "https://tiles.openfreemap.org/styles/liberty";
 
 // MET Norway kimlik bilgisi zorunlu tutuyor
 export const WEATHER_USER_AGENT = "Yolustu/1.0 github.com/ssefaceylannn/yolustu";
