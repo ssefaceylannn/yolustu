@@ -10,6 +10,8 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
   process.exit(1);
 }
 const mode = process.argv[2] || "all";
+// Eski tip anahtar (JWT) Authorization başlığına da konur; yeni tip (sb_secret_...) sadece apikey başlığıyla gönderilir.
+const authHeaders = { apikey: SERVICE_KEY, ...(SERVICE_KEY.startsWith("eyJ") ? { Authorization: `Bearer ${SERVICE_KEY}` } : {}) };
 const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 const AREA = `area["ISO3166-1"="TR"][admin_level=2]->.tr;`;
 
@@ -38,7 +40,7 @@ async function overpass(query) {
 async function rpc(fn, args) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: "POST",
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+    headers: { ...authHeaders, "Content-Type": "application/json" },
     body: JSON.stringify(args),
   });
   if (!res.ok) throw new Error(`${fn}: ${res.status} ${await res.text()}`);
@@ -52,7 +54,7 @@ const norm = (s) => (s || "").toLocaleLowerCase("tr").replace(/ ili$/, "").repla
 
 async function importProvinces() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/provinces?select=code,name`, {
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
+    headers: authHeaders,
   });
   const provinces = await res.json();
   const byName = new Map(provinces.map((p) => [norm(p.name), p.code]));
