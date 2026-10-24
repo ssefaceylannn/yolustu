@@ -51,7 +51,7 @@ jobs:
           set -o pipefail
           xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
             -sdk iphonesimulator -destination "generic/platform=iOS Simulator" -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO build | tail -n 80
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES build | tail -n 80
       - name: Simülatörü aç ve uygulamayı kur
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
@@ -78,12 +78,9 @@ jobs:
           echo "::add-mask::$TOKEN"
           { echo "TEST_EMAIL=$EMAIL"; echo "TEST_PASS=$PASS"; echo "TEST_TOKEN=$TOKEN"; } >> "$GITHUB_ENV"
       - name: Uçtan uca test
-        run: maestro --device "$UDID" test .maestro/smoke.yaml -e EMAIL="$TEST_EMAIL" -e PASSWORD="$TEST_PASS" --test-output-dir maestro-out --debug-output maestro-debug
-      - name: Hata ayrıntısı
-        if: failure()
         run: |
-          find maestro-debug -name "*.json" -path "*commands*" | head -1 | xargs -I{} python3 -c "import json; d=json.load(open('{}')); [print(c.get('metadata',{}).get('status'), str(c.get('command'))[:160], (c.get('metadata',{}).get('error') or {}).get('message','')) for c in d[-8:]]" || true
-          xcrun simctl spawn "$UDID" log show --last 3m --predicate 'process CONTAINS "Yol"' --style compact 2>/dev/null | grep -iE "error|exception|fatal|crash" | tail -40 || true
+          set -o pipefail
+          maestro --device "$UDID" test .maestro/smoke.yaml -e EMAIL="$TEST_EMAIL" -e PASSWORD="$TEST_PASS" --test-output-dir maestro-out --debug-output maestro-debug 2>&1 | tee maestro.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -97,3 +94,11 @@ jobs:
         run: |
           curl -sS -o /dev/null -w "silme HTTP %{http_code}\n" -X POST "$SUPABASE_URL/rest/v1/rpc/delete_my_account" \
             -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $TEST_TOKEN" -H "Content-Type: application/json" -d '{}'
+      - name: Özet (en sonda okunur)
+        if: always()
+        run: |
+          echo "=== Uygulama hata kayıtları ==="
+          xcrun simctl spawn "$UDID" log show --last 10m --predicate 'process == "Yolustu" AND (messageType == error OR messageType == fault)' --style compact 2>/dev/null \
+            | grep -v "xctest" | tail -25 || true
+          echo "=== Maestro ==="
+          grep -vE "^\s*$" maestro.log 2>/dev/null | tail -60 || true
