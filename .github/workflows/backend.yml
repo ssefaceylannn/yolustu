@@ -6,6 +6,9 @@ on:
     paths: ["supabase/**", ".github/workflows/backend.yml"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   PROJECT_REF: jhnazkhvdtwqersdvrco
 
@@ -53,9 +56,11 @@ jobs:
       - name: Veritabanını güncelle
         if: steps.secrets.outputs.ready == 'true'
         run: supabase db push --password "$SUPABASE_DB_PASSWORD" --include-all
-      - name: Rota fonksiyonunu yayınla
+      - name: Sunucu fonksiyonlarını yayınla
         if: steps.secrets.outputs.ready == 'true'
-        run: supabase functions deploy route --project-ref "$PROJECT_REF" --use-api
+        run: |
+          supabase functions deploy route --project-ref "$PROJECT_REF" --use-api
+          supabase functions deploy delete-account --project-ref "$PROJECT_REF" --use-api
       - name: Rota servisi anahtarı
         if: steps.secrets.outputs.ready == 'true' && env.GEOAPIFY_API_KEY != ''
         run: supabase secrets set GEOAPIFY_API_KEY="$GEOAPIFY_API_KEY" --project-ref "$PROJECT_REF"

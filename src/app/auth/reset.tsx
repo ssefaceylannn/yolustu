@@ -15,13 +15,13 @@ export default function ResetPassword() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sadece e-postadaki sıfırlama bağlantısıyla açılır; kodsuz açılırsa şifre değiştirilemez
   useEffect(() => {
     (async () => {
-      if (code) {
-        const { error: e } = await supabase.auth.exchangeCodeForSession(String(code));
-        if (e) setError(authErrorText(t, e));
-      }
-      setReady(true);
+      if (!code) { router.replace("/"); return; }
+      const { error: e } = await supabase.auth.exchangeCodeForSession(String(code));
+      if (e) setError(authErrorText(t, e));
+      else setReady(true);
     })();
   }, [code, t]);
 

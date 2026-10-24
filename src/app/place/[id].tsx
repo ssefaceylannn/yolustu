@@ -130,8 +130,11 @@ export default function PlaceScreen() {
   if (tg.dogs === "yes") amenityChips.push({ key: "do", icon: "heart", label: t("filter.dogs") });
 
   const info: { icon: IconName; label: string; value: string; onPress?: () => void }[] = [];
-  if (tg.phone) info.push({ icon: "phone", label: t("place.phone"), value: tg.phone, onPress: () => Linking.openURL(`tel:${tg.phone.replace(/\s/g, "")}`) });
-  if (tg.website) info.push({ icon: "globe", label: t("place.website"), value: tg.website.replace(/^https?:\/\//, ""), onPress: () => Linking.openURL(tg.website.startsWith("http") ? tg.website : `https://${tg.website}`) });
+  // Etiketler dış kaynaktan (OSM / kullanıcı) gelir: sadece güvenli telefon ve http(s) adresleri açılır
+  const phone = typeof tg.phone === "string" ? tg.phone.split(";")[0].replace(/[^0-9+]/g, "") : "";
+  if (/^\+?[0-9]{5,15}$/.test(phone)) info.push({ icon: "phone", label: t("place.phone"), value: String(tg.phone).split(";")[0].trim(), onPress: () => Linking.openURL(`tel:${phone}`) });
+  const site = safeUrl(tg.website);
+  if (site) info.push({ icon: "globe", label: t("place.website"), value: site.replace(/^https?:\/\//, "").slice(0, 60), onPress: () => Linking.openURL(site) });
   if (tg.opening_hours) info.push({ icon: "clock", label: t("place.hours"), value: tg.opening_hours });
   if (tg.ele) info.push({ icon: "peak", label: t("place.elevation"), value: `${tg.ele} m` });
   if (tg.brand) info.push({ icon: "car_dealer", label: t("place.brand"), value: tg.brand });
@@ -316,4 +319,13 @@ function SectionTitle({ title, action, onAction }: { title: string; action?: str
       {action ? <Txt variant="subheadMedium" color="brand" onPress={onAction}>{action}</Txt> : null}
     </View>
   );
+}
+
+function safeUrl(v: unknown): string | null {
+  if (typeof v !== "string" || v.length > 300) return null;
+  const raw = v.trim().split(";")[0].trim();
+  // React Native'in URL desteği sınırlı olduğu için düz kontrol: sadece http(s), boşluksuz, geçerli alan adı
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : /^[a-z][a-z0-9+.-]*:/i.test(raw) ? null : `https://${raw}`;
+  if (!withScheme || !/^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?::\d+)?(?:[/?#][^\s<>"]*)?$/i.test(withScheme)) return null;
+  return withScheme;
 }

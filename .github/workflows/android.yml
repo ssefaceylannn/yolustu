@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-${{ github.ref }}
@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -46,6 +48,18 @@ jobs:
         with:
           name: yolustu-apk
           path: out/yolustu.apk
+
+  # Yayın ayrı işte: derleme adımları (bağımlılıklar dahil) depoya yazma yetkisi görmez
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: yolustu-apk
+          path: out
       - name: Test sürümünü yayınla
         uses: softprops/action-gh-release@v2
         with:

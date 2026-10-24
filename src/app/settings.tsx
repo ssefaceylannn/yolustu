@@ -14,7 +14,7 @@ import { useTheme, type ThemePreference } from "@/theme/ThemeProvider";
 export default function Settings() {
   const { t, locale, setLocale } = useI18n();
   const { colors, preference, setPreference } = useTheme();
-  const { settings, updateSettings, userId, profile } = useAuth();
+  const { settings, updateSettings } = useAuth();
   const [deleting, setDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,12 +42,8 @@ export default function Settings() {
     if (confirmText.trim().toLocaleUpperCase(locale === "tr" ? "tr-TR" : "en-US") !== t("settings.deleteWord")) return;
     setBusy(true);
     try {
-      // Önce dosyalar (depolama), sonra hesap ve tüm satırlar
-      const { data: photos } = await supabase.from("place_photos").select("path").eq("user_id", userId!);
-      const paths = (photos ?? []).map((p) => p.path);
-      if (paths.length) await supabase.storage.from("place-photos").remove(paths);
-      if (profile?.avatar_path) await supabase.storage.from("avatars").remove([profile.avatar_path]);
-      const { error } = await supabase.rpc("delete_my_account");
+      // Sunucu tüm dosyaları (gizlenmiş fotoğraflar dahil) ve hesabı siler
+      const { error } = await supabase.functions.invoke("delete-account", { body: {} });
       if (error) throw error;
       await supabase.auth.signOut();
     } catch {
