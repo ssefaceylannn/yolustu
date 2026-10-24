@@ -63,8 +63,8 @@ Karavancılar (motokaravan, çekme karavan), kampçılar ve kendi aracıyla Tür
   - "Görünür ol" açıkken konum yaklaşık 2 km'lik ızgara hücresine yuvarlanarak saklanır ve 6 saat sonra otomatik silinir.
   - Konum paylaşımı iki taraflı onayla, tek seferlik.
 - **Erişim kontrolü:** Veritabanında her tabloda satır düzeyinde güvenlik (RLS). Kullanıcı sadece kendi özel verisini görür; mesajlar sadece taraflarına açıktır.
-- **Altyapı:** Supabase (PostgreSQL + PostGIS), sunucular AB (Frankfurt) bölgesinde. Yurt dışına veri aktarımı için açık rıza alınır.
-- **Metinler:** KVKK aydınlatma metni, açık rıza metni (konum, yurt dışı aktarım), gizlilik politikası, kullanım koşulları. Yayın öncesi bir hukukçuya kontrol ettirilecek.
+- **Altyapı:** Supabase (PostgreSQL + PostGIS), sunucular AB (Frankfurt) bölgesinde. Yurt dışına aktarım için KVKK md. 9 kapsamında Kurul'un standart sözleşmesi Supabase ile imzalanıp 5 iş günü içinde Kurum'a bildirilecek (yayın öncesi, hukukçu ile).
+- **Metinler:** KVKK aydınlatma metni, gerektiği yerlerde açık rıza (ör. yakınımdaki yolcular için görünür olma), gizlilik politikası, kullanım koşulları. Yayın öncesi bir hukukçuya kontrol ettirilecek.
 - **Haklar:** Uygulama içinden hesap silme (tüm verilerle birlikte), verileri dışa aktarma.
 - **İçerik güvenliği:** Şikâyet, engelleme, küfür filtresi, istek sınırlama. Apple'ın kullanıcı içeriği kurallarına uygun.
 - **Teknik:** Sadece HTTPS. Oturum anahtarları cihazın güvenli deposunda (Keychain/Keystore). Reklam ve izleme SDK'sı yok.
