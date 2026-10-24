@@ -5,13 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BaseMap } from "@/components/BaseMap";
+import { StopToggle } from "@/components/StopToggle";
 import { Icon } from "@/components/Icon";
 import { Button, Chip, IconButton, Segmented, shadow, Txt } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { openRouteInGoogle } from "@/lib/directions";
 import { catLabel, fmtDistance, fmtDuration, placeName } from "@/lib/format";
 import { getCurrentCoords, useLastLocation } from "@/lib/location";
-import { routeState, useStore, type RoutePoint } from "@/lib/store";
+import { addRouteStop, MAX_STOPS, removeRouteStop, routeState, samePoint, useStore, type RoutePoint } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import type { Category } from "@/lib/types";
 import { categoryColors } from "@/theme/colors";
@@ -52,6 +53,7 @@ export default function RouteScreen() {
   const [buffer, setBuffer] = useState<"2000" | "5000" | "10000">("5000");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const planned = useRef<string | null>(null);
 
   // Adres arama
   useEffect(() => {
@@ -81,8 +83,9 @@ export default function RouteScreen() {
     try {
       const r = await callRoute<RouteResult>({ action: "route", from, to, via: stops });
       setRoute(r);
+      planned.current = JSON.stringify([from, to, stops.map((x) => [x.lat, x.lng])]);
       const lngs = r.geometry.coordinates.map((c) => c[0]), lats = r.geometry.coordinates.map((c) => c[1]);
-      camera.current?.fitBounds([Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)], { padding: { top: 220, bottom: 80, left: 40, right: 40 }, duration: 600 });
+      camera.current?.fitBounds([Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)], { padding: { top: 220 + stops.length * 42, bottom: 80, left: 40, right: 40 }, duration: 600 });
     } catch (e: any) {
       const m = String(e?.message);
       setError(m === "quota_exceeded" ? t("route.quota") : m === "not_configured" ? t("route.notConfigured") : m === "no_route" ? t("route.noRoute") : t("common.error"));
@@ -103,17 +106,25 @@ export default function RouteScreen() {
   const lineGeo = useMemo<GeoJSON.FeatureCollection>(() => ({ type: "FeatureCollection", features: route ? [{ type: "Feature", properties: {}, geometry: route.geometry }] : [] }), [route]);
   const pointsGeo = useMemo<GeoJSON.FeatureCollection>(() => {
     const pts = [state.from && { ...state.from, kind: "from" }, ...state.stops.map((s) => ({ ...s, kind: "stop" })), state.to && { ...state.to, kind: "to" }].filter(Boolean) as (RoutePoint & { kind: string })[];
-    const alongPts = (along ?? []).map((a) => ({ type: "Feature" as const, properties: { kind: "along", category: a.category, id: a.id }, geometry: { type: "Point" as const, coordinates: [a.lng, a.lat] } }));
+    const alongPts = (along ?? []).map((a) => ({ type: "Feature" as const, properties: { kind: "along", category: a.category, id: a.id, name: placeName(t, a) }, geometry: { type: "Point" as const, coordinates: [a.lng, a.lat] } }));
     return { type: "FeatureCollection", features: [...alongPts, ...pts.map((p) => ({ type: "Feature" as const, properties: { kind: p.kind }, geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] } }))] };
-  }, [state, along]);
+  }, [state, along, t]);
   const colorMatch = ["match", ["get", "category"], ...Object.entries(categoryColors).flat(), colors.primary] as any;
 
-  const addStop = (a: AlongPlace) => {
-    const s = routeState.get().stops;
-    if (s.length >= 5 || s.some((x) => x.placeId === a.id)) return;
-    routeState.set({ stops: [...s, { label: placeName(t, a), lat: a.lat, lng: a.lng, placeId: a.id }] });
-    plan();
+  const toggleAlong = (a: AlongPlace) => {
+    const p = { label: placeName(t, a), lat: a.lat, lng: a.lng, placeId: a.id };
+    if (state.stops.some((x) => samePoint(x, p))) removeRouteStop(p);
+    else if (!addRouteStop(p)) setError(t("route.stopsFull", { n: MAX_STOPS }));
   };
+
+  // Duraklar değişince (harita sekmesinden eklenenler dahil) rotayı yeniden hesapla
+  const stopsKey = JSON.stringify([state.from, state.to, state.stops.map((x) => [x.lat, x.lng])]);
+  useEffect(() => {
+    if (!route || planned.current === null || planned.current === stopsKey) return;
+    const h = setTimeout(() => { plan(); }, 400);
+    return () => clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopsKey, route]);
 
   const field = (which: "from" | "to") => {
     const p = state[which];
@@ -144,6 +155,9 @@ export default function RouteScreen() {
             if (f?.properties?.kind === "along") router.push(`/place/${f.properties.id}`);
           }}>
             <Layer id="along" type="circle" filter={["==", ["get", "kind"], "along"]} paint={{ "circle-color": colorMatch, "circle-radius": 6, "circle-stroke-width": 2, "circle-stroke-color": "#FFFFFF" }} />
+            <Layer id="along-labels" type="symbol" minzoom={11} filter={["==", ["get", "kind"], "along"]}
+              layout={{ "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": 12, "text-anchor": "top", "text-offset": [0, 0.9], "text-max-width": 9, "text-optional": true }}
+              paint={{ "text-color": colors.text, "text-halo-color": colors.surface, "text-halo-width": 1.6 }} />
             <Layer id="ends" type="circle" filter={["!=", ["get", "kind"], "along"]}
               paint={{ "circle-color": ["match", ["get", "kind"], "from", colors.primary, "to", colors.accent, "#FFFFFF"], "circle-radius": 8, "circle-stroke-width": 3, "circle-stroke-color": ["match", ["get", "kind"], "stop", colors.accent, "#FFFFFF"] }} />
           </GeoJSONSource>
@@ -158,6 +172,20 @@ export default function RouteScreen() {
               <IconButton name="swap" size={34} label={t("route.swap")} onPress={() => { routeState.set((s) => ({ ...s, from: s.to, to: s.from, stops: [...s.stops].reverse() })); setRoute(null); setAlong(null); }} />
             </View>
           </View>
+          {state.stops.length && !editing ? (
+            <View style={{ marginTop: 8, backgroundColor: colors.elevated, borderRadius: radius.lg, paddingVertical: 4, ...shadow(2) }}>
+              <Txt variant="footnoteMedium" color="secondary" style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 2 }}>{t("route.stops")}</Txt>
+              {state.stops.map((s, i) => (
+                <View key={`${s.lat},${s.lng}`} style={{ flexDirection: "row", alignItems: "center", gap: 10, height: 42, paddingHorizontal: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: colors.separator }}>
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}>
+                    <Txt variant="captionMedium" style={{ color: "#FFF" }}>{i + 1}</Txt>
+                  </View>
+                  <Txt variant="body" numberOfLines={1} style={{ flex: 1 }}>{s.label}</Txt>
+                  <StopToggle added onPress={() => removeRouteStop(s)} size={28} />
+                </View>
+              ))}
+            </View>
+          ) : null}
           {editing ? (
             <View style={{ marginTop: 8, backgroundColor: colors.elevated, borderRadius: radius.lg, maxHeight: 340, overflow: "hidden", ...shadow(2) }}>
               <Pressable onPress={chooseMyLocation} style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14 }}>
@@ -190,14 +218,13 @@ export default function RouteScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", padding: 16, gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Txt variant="title3">{t("route.summary", { distance: fmtDistance(t, route.distance_m, fmtNumber), duration: fmtDuration(t, route.duration_s) })}</Txt>
-              {state.stops.length ? <Txt variant="footnote" color="secondary">{t("route.stops")}: {state.stops.map((s) => s.label).join(", ")}</Txt> : null}
               <Txt variant="caption" color="tertiary">Powered by Geoapify</Txt>
             </View>
             <Button title={t("route.start")} size="medium" icon="directions"
               onPress={() => openRouteInGoogle([state.from!, ...state.stops, state.to!])} />
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
-            {ALONG.map((c) => <Chip key={c} label={catLabel(t, c)} icon={c} color={categoryColors[c]} selected={cats.includes(c)} onPress={() => setCats(cats.includes(c) ? cats.filter((x) => x !== c) : [...cats, c])} />)}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 10, paddingHorizontal: 16, paddingVertical: 6 }}>
+            {ALONG.map((c) => <Chip key={c} size="large" label={catLabel(t, c)} icon={c} color={categoryColors[c]} selected={cats.includes(c)} onPress={() => setCats(cats.includes(c) ? cats.filter((x) => x !== c) : [...cats, c])} />)}
           </ScrollView>
           <View style={{ paddingHorizontal: 16, paddingTop: 10, flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Txt variant="footnote" color="secondary">{t("route.corridor")}</Txt>
@@ -222,9 +249,7 @@ export default function RouteScreen() {
                     {" · "}{fmtDistance(t, item.route_fraction * route.distance_m, fmtNumber)}
                   </Txt>
                 </View>
-                <Pressable hitSlop={10} onPress={() => addStop(item)} accessibilityLabel={t("route.addStop")}>
-                  <Icon name="plus" size={20} color={colors.primary} />
-                </Pressable>
+                <StopToggle added={state.stops.some((x) => x.placeId === item.id)} onPress={() => toggleAlong(item)} />
               </Pressable>
             )}
           />

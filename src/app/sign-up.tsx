@@ -43,6 +43,8 @@ export default function SignUp() {
     });
     setBusy(false);
     if (e) return setError(authErrorText(t, e));
+    // Kayıtlı e-postada Supabase hata vermez, boş kimlik listesiyle döner
+    if (data.user && data.user.identities?.length === 0) return setError(t("auth.err.exists"));
     if (!data.session) setSentTo(email.trim());
   };
 
