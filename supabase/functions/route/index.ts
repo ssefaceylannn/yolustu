@@ -1,7 +1,8 @@
-// Rota ve adres arama (OpenRouteService). Anahtar sunucuda kalır; kişi başı günlük kota uygulanır.
+// Rota ve adres arama (Geoapify). Anahtar sunucuda kalır; kişi başı günlük kota uygulanır.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const ORS_KEY = Deno.env.get("ORS_API_KEY") ?? "";
+const API_KEY = Deno.env.get("GEOAPIFY_API_KEY") ?? "";
+const BASE = "https://api.geoapify.com/v1";
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
 });
@@ -49,7 +50,7 @@ function simplify(points: LngLat[], tolerance: number): LngLat[] {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-  if (!ORS_KEY) return json({ error: "not_configured" }, 503);
+  if (!API_KEY) return json({ error: "not_configured" }, 503);
 
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   const { data: auth } = await admin.auth.getUser(token);
@@ -65,26 +66,27 @@ Deno.serve(async (req) => {
     if (text.length < 2) return json({ results: [] });
     const { data: allowed } = await admin.rpc("consume_api_quota", { p_user: user.id, p_kind: "geocode", p_limit: 400 });
     if (!allowed) return json({ error: "quota_exceeded" }, 429);
-    const lang = body.lang === "en" ? "en" : "tr";
-    const url = new URL("https://api.openrouteservice.org/geocode/autocomplete");
+    const url = new URL(`${BASE}/geocode/autocomplete`);
     url.searchParams.set("text", text);
-    url.searchParams.set("boundary.country", "TR");
-    url.searchParams.set("size", "8");
-    url.searchParams.set("lang", lang);
-    if (inTurkeyish(body.focus)) {
-      url.searchParams.set("focus.point.lat", String(body.focus.lat));
-      url.searchParams.set("focus.point.lon", String(body.focus.lng));
-    }
-    const res = await fetch(url, { headers: { Authorization: ORS_KEY } });
+    url.searchParams.set("filter", "countrycode:tr");
+    url.searchParams.set("lang", body.lang === "en" ? "en" : "tr");
+    url.searchParams.set("limit", "8");
+    url.searchParams.set("format", "json");
+    if (inTurkeyish(body.focus)) url.searchParams.set("bias", `proximity:${body.focus.lng},${body.focus.lat}`);
+    url.searchParams.set("apiKey", API_KEY);
+    const res = await fetch(url);
     if (!res.ok) return json({ error: "upstream", status: res.status }, 502);
     const data = await res.json();
-    const results = (data.features ?? []).map((f: any) => ({
-      label: f.properties?.label ?? f.properties?.name,
-      name: f.properties?.name,
-      region: [f.properties?.locality, f.properties?.region].filter(Boolean).join(", "),
-      lng: f.geometry?.coordinates?.[0],
-      lat: f.geometry?.coordinates?.[1],
-    }));
+    const results = (data.results ?? []).map((r: any) => {
+      const name = r.name || r.address_line1 || r.city || r.formatted;
+      return {
+        label: r.formatted,
+        name,
+        region: [r.city && r.city !== name ? r.city : null, r.county, r.state].filter(Boolean).join(", "),
+        lng: r.lon,
+        lat: r.lat,
+      };
+    });
     return json({ results });
   }
 
@@ -94,24 +96,28 @@ Deno.serve(async (req) => {
     if (![from, to, ...via].every(inTurkeyish)) return json({ error: "bad_coordinates" }, 400);
     const { data: allowed } = await admin.rpc("consume_api_quota", { p_user: user.id, p_kind: "route", p_limit: 60 });
     if (!allowed) return json({ error: "quota_exceeded" }, 429);
-    const coordinates = [from, ...via, to].map((p) => [p.lng, p.lat]);
-    const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car/geojson", {
-      method: "POST",
-      headers: { Authorization: ORS_KEY, "Content-Type": "application/json", Accept: "application/geo+json" },
-      body: JSON.stringify({ coordinates, instructions: false, preference: body.preference === "shortest" ? "shortest" : "recommended" }),
-    });
+    const url = new URL(`${BASE}/routing`);
+    url.searchParams.set("waypoints", [from, ...via, to].map((p) => `${p.lat},${p.lng}`).join("|"));
+    url.searchParams.set("mode", "drive");
+    if (body.preference === "shortest") url.searchParams.set("type", "short");
+    url.searchParams.set("format", "geojson");
+    url.searchParams.set("apiKey", API_KEY);
+    const res = await fetch(url);
     if (!res.ok) {
       const detail = await res.text();
-      return json({ error: "upstream", status: res.status, detail: detail.slice(0, 300) }, 502);
+      const noRoute = res.status === 400;
+      return json({ error: noRoute ? "no_route" : "upstream", status: res.status, detail: detail.slice(0, 300) }, noRoute ? 404 : 502);
     }
     const data = await res.json();
     const feature = data.features?.[0];
-    const coords: LngLat[] = feature?.geometry?.coordinates ?? [];
+    const g = feature?.geometry;
+    // Her bacak ayrı çizgi olarak gelir; tek çizgide birleştir
+    const coords: LngLat[] = g?.type === "MultiLineString" ? (g.coordinates as LngLat[][]).flat() : g?.type === "LineString" ? g.coordinates : [];
     if (!coords.length) return json({ error: "no_route" }, 404);
-    const summary = feature.properties?.summary ?? {};
+    const p = feature.properties ?? {};
     return json({
-      distance_m: Math.round(summary.distance ?? 0),
-      duration_s: Math.round(summary.duration ?? 0),
+      distance_m: Math.round(p.distance ?? 0),
+      duration_s: Math.round(p.time ?? 0),
       geometry: { type: "LineString", coordinates: coords.map(([x, y]) => [Math.round(x * 1e5) / 1e5, Math.round(y * 1e5) / 1e5]) },
       simplified: { type: "LineString", coordinates: simplify(coords, 0.002) },
     });

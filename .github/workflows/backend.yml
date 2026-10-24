@@ -31,7 +31,7 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      ORS_API_KEY: ${{ secrets.ORS_API_KEY }}
+      GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
     steps:
       - uses: actions/checkout@v5
       - name: Gizli anahtarları kontrol et
@@ -57,5 +57,5 @@ jobs:
         if: steps.secrets.outputs.ready == 'true'
         run: supabase functions deploy route --project-ref "$PROJECT_REF" --use-api
       - name: Rota servisi anahtarı
-        if: steps.secrets.outputs.ready == 'true' && env.ORS_API_KEY != ''
-        run: supabase secrets set ORS_API_KEY="$ORS_API_KEY" --project-ref "$PROJECT_REF"
+        if: steps.secrets.outputs.ready == 'true' && env.GEOAPIFY_API_KEY != ''
+        run: supabase secrets set GEOAPIFY_API_KEY="$GEOAPIFY_API_KEY" --project-ref "$PROJECT_REF"

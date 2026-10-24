@@ -11,7 +11,7 @@ Depo → **Settings → Secrets and variables → Actions → New repository sec
 | `SUPABASE_ACCESS_TOKEN` | supabase.com → sağ üstte hesap → **Account preferences → Access Tokens → Generate new token** |
 | `SUPABASE_DB_PASSWORD` | Supabase projesini açarken belirlenen veritabanı şifresi (unutulduysa: Project Settings → Database → Reset database password) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API Keys → **secret** (ya da eski tip **service_role**) anahtar |
-| `ORS_API_KEY` | openrouteservice.org → ücretsiz hesap → Dashboard → **Request a token** (Standard) |
+| `GEOAPIFY_API_KEY` | myprojects.geoapify.com → ücretsiz hesap → **Create a project** → API anahtarı |
 
 Bu anahtarlar sadece GitHub'da durur; uygulamanın içine konmaz.
 

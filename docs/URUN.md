@@ -76,7 +76,7 @@ Karavancılar (motokaravan, çekme karavan), kampçılar ve kendi aracıyla Tür
 | Yazı tipi | iOS'ta sistem fontu (SF Pro), Android'de Inter | SF Pro'nun lisansı sadece Apple cihazlarında kullanıma izin veriyor; Inter ona en yakın açık lisanslı font |
 | Renkler | Orman yeşili `#1F4D3A`, gün batımı turuncusu `#F2994A`, krem `#FAF6EE` + koyu tema | |
 | Harita | MapLibre + OpenFreeMap karoları | Anahtar ve ücret yok, ileride çevrimdışı harita desteği |
-| Rota | OpenRouteService | Ücretsiz plan günde 2.000 rota; ileride araç ölçülü rota (HGV) |
+| Rota ve adres arama | Geoapify | Ücretsiz plan günde 3.000 kredi; ileride araç ölçülü rota (kamyon modu). OpenRouteService'in API adresi kapanış sürecinde olduğu için değiştirildi |
 | Yer verisi | OpenStreetMap (Overpass) → kendi veritabanımıza aktarım | Harita ilk günden dolu |
 | Hava durumu | MET Norway Locationforecast | Ücretsiz, anahtar gerekmez |
 | Sunucu | Supabase (Auth, Postgres + PostGIS, Storage, Edge Functions), AB bölgesi | Konum sorguları, RLS, KVKK |

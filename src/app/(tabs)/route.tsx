@@ -191,6 +191,7 @@ export default function RouteScreen() {
             <View style={{ flex: 1 }}>
               <Txt variant="title3">{t("route.summary", { distance: fmtDistance(t, route.distance_m, fmtNumber), duration: fmtDuration(t, route.duration_s) })}</Txt>
               {state.stops.length ? <Txt variant="footnote" color="secondary">{t("route.stops")}: {state.stops.map((s) => s.label).join(", ")}</Txt> : null}
+              <Txt variant="caption" color="tertiary">Powered by Geoapify</Txt>
             </View>
             <Button title={t("route.start")} size="medium" icon="directions"
               onPress={() => openRouteInGoogle([state.from!, ...state.stops, state.to!])} />
