@@ -34,11 +34,11 @@ export default function SignIn() {
 
   return (
     <Screen>
-      <Field label={t("auth.email")} value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" />
-      <Field label={t("auth.password")} value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" textContentType="password" onSubmitEditing={submit} />
+      <Field testID="email" label={t("auth.email")} value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" />
+      <Field testID="password" label={t("auth.password")} value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" textContentType="password" onSubmitEditing={submit} />
       {error ? <Txt variant="footnote" color="danger" style={{ marginTop: 12, marginLeft: 4 }}>{error}</Txt> : null}
       {unconfirmed ? <View style={{ marginTop: 4 }}><OtpVerify email={email.trim()} /><View style={{ marginTop: 10 }}><ResendEmail email={email.trim()} /></View></View> : null}
-      <Button title={t("welcome.signIn")} onPress={submit} loading={busy} style={{ marginTop: 24 }} />
+      <Button testID="signin-submit" title={t("welcome.signIn")} onPress={submit} loading={busy} style={{ marginTop: 24 }} />
       <Button title={t("auth.forgot")} kind="plain" size="medium" onPress={forgot} style={{ marginTop: 8 }} />
       <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 28 }}>
         <Txt variant="subhead" color="secondary">{t("auth.noAccount")}</Txt>

@@ -47,6 +47,19 @@ function simplify(points: LngLat[], tolerance: number): LngLat[] {
   return points.filter((_, i) => keep[i]);
 }
 
+// Dış servis çağrısı: hata ayrıntısı (anahtarlı adres dahil) istemciye ya da loglara sızmaz
+async function upstream(url: URL): Promise<{ ok: boolean; status: number; data: any }> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) { await res.body?.cancel(); return { ok: false, status: res.status, data: null }; }
+    return { ok: true, status: res.status, data: await res.json() };
+  } catch {
+    return { ok: false, status: 0, data: null };
+  }
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -57,6 +70,7 @@ Deno.serve(async (req) => {
   const user = auth?.user;
   if (!user) return json({ error: "unauthorized" }, 401);
 
+  if (Number(req.headers.get("content-length") ?? 0) > 20000) return json({ error: "too_large" }, 413);
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "bad_request" }, 400); }
   const action = body?.action;
@@ -72,11 +86,12 @@ Deno.serve(async (req) => {
     url.searchParams.set("lang", body.lang === "en" ? "en" : "tr");
     url.searchParams.set("limit", "8");
     url.searchParams.set("format", "json");
-    if (inTurkeyish(body.focus)) url.searchParams.set("bias", `proximity:${body.focus.lng},${body.focus.lat}`);
+    // Kişinin konumu servise yaklaşık (~10 km) gönderilir
+    if (inTurkeyish(body.focus)) url.searchParams.set("bias", `proximity:${round1(body.focus.lng)},${round1(body.focus.lat)}`);
     url.searchParams.set("apiKey", API_KEY);
-    const res = await fetch(url);
-    if (!res.ok) return json({ error: "upstream", status: res.status }, 502);
-    const data = await res.json();
+    const up = await upstream(url);
+    if (!up.ok) return json({ error: "upstream" }, 502);
+    const data = up.data;
     const results = (data.results ?? []).map((r: any) => {
       const name = r.name || r.address_line1 || r.city || r.formatted;
       return {
@@ -92,7 +107,7 @@ Deno.serve(async (req) => {
 
   if (action === "route") {
     const from = body.from, to = body.to;
-    const via: { lat: number; lng: number }[] = Array.isArray(body.via) ? body.via.slice(0, 5) : [];
+    const via: { lat: number; lng: number }[] = Array.isArray(body.via) ? body.via.slice(0, 8) : [];
     if (![from, to, ...via].every(inTurkeyish)) return json({ error: "bad_coordinates" }, 400);
     const { data: allowed } = await admin.rpc("consume_api_quota", { p_user: user.id, p_kind: "route", p_limit: 60 });
     if (!allowed) return json({ error: "quota_exceeded" }, 429);
@@ -102,13 +117,12 @@ Deno.serve(async (req) => {
     if (body.preference === "shortest") url.searchParams.set("type", "short");
     url.searchParams.set("format", "geojson");
     url.searchParams.set("apiKey", API_KEY);
-    const res = await fetch(url);
-    if (!res.ok) {
-      const detail = await res.text();
-      const noRoute = res.status === 400;
-      return json({ error: noRoute ? "no_route" : "upstream", status: res.status, detail: detail.slice(0, 300) }, noRoute ? 404 : 502);
+    const up = await upstream(url);
+    if (!up.ok) {
+      const noRoute = up.status === 400;
+      return json({ error: noRoute ? "no_route" : "upstream" }, noRoute ? 404 : 502);
     }
-    const data = await res.json();
+    const data = up.data;
     const feature = data.features?.[0];
     const g = feature?.geometry;
     // Her bacak ayrı çizgi olarak gelir; tek çizgide birleştir

@@ -1,0 +1,99 @@
+name: iOS simülatör testi
+
+# Uygulamayı iPhone simülatöründe derleyip gerçek sunucuya karşı uçtan uca dener (Maestro).
+# Geçici bir test hesabı açılır ve test sonunda silinir.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-sim-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      SUPABASE_URL: https://jhnazkhvdtwqersdvrco.supabase.co
+      SUPABASE_KEY: sb_publishable_DYyLfiyBMJsK_k2BJ-RQ5A_8kEhBoiL
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: En yeni Xcode'u seç
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+      - name: Paketler
+        run: npm ci --no-audit --no-fund
+      - name: iOS projesi
+        run: npx expo prebuild --platform ios --no-install
+      - name: CocoaPods
+        working-directory: ios
+        run: pod install
+      - name: Simülatör için derle
+        working-directory: ios
+        run: |
+          WS=$(ls -d *.xcworkspace | head -1); SCHEME="${WS%.xcworkspace}"
+          set -o pipefail
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination "generic/platform=iOS Simulator" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 80
+      - name: Simülatörü aç ve uygulamayı kur
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          APP=$(ls -d ios/build/Build/Products/Release-iphonesimulator/*.app | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl location "$UDID" set 41.0082,28.9784
+          xcrun simctl privacy "$UDID" grant location app.yolustu || true
+      - name: Maestro kur
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Geçici test hesabı
+        run: |
+          EMAIL="yolustu.ci.${GITHUB_RUN_ID}@mailinator.com"
+          PASS="Ci-$(openssl rand -hex 12)"
+          echo "::add-mask::$PASS"
+          RESP=$(curl -sS -X POST "$SUPABASE_URL/auth/v1/signup" -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\",\"data\":{\"username\":\"citest${GITHUB_RUN_ID: -6}\"}}")
+          TOKEN=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('access_token',''))")
+          if [ -z "$TOKEN" ]; then echo "Kayıt yanıtı:"; echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print({k:d.get(k) for k in ('code','error_code','msg','message')})"; exit 1; fi
+          echo "::add-mask::$TOKEN"
+          { echo "TEST_EMAIL=$EMAIL"; echo "TEST_PASS=$PASS"; echo "TEST_TOKEN=$TOKEN"; } >> "$GITHUB_ENV"
+      - name: Uçtan uca test
+        run: maestro --device "$UDID" test .maestro/smoke.yaml -e EMAIL="$TEST_EMAIL" -e PASSWORD="$TEST_PASS" --test-output-dir maestro-out --debug-output maestro-debug
+      - name: Hata ayrıntısı
+        if: failure()
+        run: |
+          find maestro-debug -name "*.json" -path "*commands*" | head -1 | xargs -I{} python3 -c "import json; d=json.load(open('{}')); [print(c.get('metadata',{}).get('status'), str(c.get('command'))[:160], (c.get('metadata',{}).get('error') or {}).get('message','')) for c in d[-8:]]" || true
+          xcrun simctl spawn "$UDID" log show --last 3m --predicate 'process CONTAINS "Yol"' --style compact 2>/dev/null | grep -iE "error|exception|fatal|crash" | tail -40 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-sim-screens
+          path: |
+            maestro-out
+            maestro-debug
+            *.png
+      - name: Test hesabını sil
+        if: always() && env.TEST_TOKEN != ''
+        run: |
+          curl -sS -o /dev/null -w "silme HTTP %{http_code}\n" -X POST "$SUPABASE_URL/rest/v1/rpc/delete_my_account" \
+            -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $TEST_TOKEN" -H "Content-Type: application/json" -d '{}'

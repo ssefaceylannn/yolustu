@@ -32,7 +32,7 @@ export default function Welcome() {
       </View>
       <View style={{ flex: 1 }} />
       <Button title={t("welcome.signUp")} onPress={() => router.push("/sign-up")} />
-      <Button title={t("welcome.signIn")} kind="plain" onPress={() => router.push("/sign-in")} style={{ marginTop: 8 }} />
+      <Button testID="welcome-signin" title={t("welcome.signIn")} kind="plain" onPress={() => router.push("/sign-in")} style={{ marginTop: 8 }} />
     </View>
   );
 }

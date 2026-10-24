@@ -130,10 +130,10 @@ export default function RouteScreen() {
     const p = state[which];
     const active = editing === which;
     return (
-      <Pressable onPress={() => { setEditing(which); setQuery(""); }} style={{ flexDirection: "row", alignItems: "center", gap: 10, height: 44, paddingHorizontal: 12 }}>
+      <Pressable testID={`route-${which}`} onPress={() => { setEditing(which); setQuery(""); }} style={{ flexDirection: "row", alignItems: "center", gap: 10, height: 44, paddingHorizontal: 12 }}>
         <View style={{ width: 10, height: 10, borderRadius: which === "from" ? 5 : 2, backgroundColor: which === "from" ? colors.primary : colors.accent }} />
         {active ? (
-          <TextInput autoFocus value={query} onChangeText={setQuery} placeholder={t("route.searchPlaceholder")} placeholderTextColor={colors.textTertiary}
+          <TextInput testID="route-input" autoFocus value={query} onChangeText={setQuery} placeholder={t("route.searchPlaceholder")} placeholderTextColor={colors.textTertiary}
             style={[type.body, { flex: 1, color: colors.text, paddingVertical: 0 }]} autoCorrect={false} />
         ) : (
           <Txt variant="body" numberOfLines={1} color={p ? undefined : "tertiary"} style={{ flex: 1 }}>{p?.label ?? (which === "from" ? t("route.from") : t("route.to"))}</Txt>
@@ -188,14 +188,14 @@ export default function RouteScreen() {
           ) : null}
           {editing ? (
             <View style={{ marginTop: 8, backgroundColor: colors.elevated, borderRadius: radius.lg, maxHeight: 340, overflow: "hidden", ...shadow(2) }}>
-              <Pressable onPress={chooseMyLocation} style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14 }}>
+              <Pressable testID="route-mylocation" onPress={chooseMyLocation} style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14 }}>
                 <Icon name="locate" size={18} color={colors.primary} />
                 <Txt variant="bodyMedium" color="brand">{t("route.myLocation")}</Txt>
               </Pressable>
               {searching ? <ActivityIndicator style={{ padding: 10 }} color={colors.primary} /> : null}
               <FlatList data={results} keyboardShouldPersistTaps="handled" keyExtractor={(r, i) => `${r.label}-${i}`}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => choose({ label: item.name || item.label, lat: item.lat, lng: item.lng })}
+                  <Pressable testID="geo-result" onPress={() => choose({ label: item.name || item.label, lat: item.lat, lng: item.lng })}
                     style={({ pressed }) => ({ padding: 14, backgroundColor: pressed ? colors.surfaceAlt : "transparent", borderTopWidth: 0.5, borderTopColor: colors.separator })}>
                     <Txt variant="body" numberOfLines={1}>{item.name || item.label}</Txt>
                     {item.region ? <Txt variant="footnote" color="secondary" numberOfLines={1}>{item.region}</Txt> : null}
@@ -203,7 +203,7 @@ export default function RouteScreen() {
                 )} />
             </View>
           ) : state.from && state.to && !route ? (
-            <Button title={t("route.plan")} onPress={plan} loading={busy} style={{ marginTop: 10 }} />
+            <Button testID="route-plan" title={t("route.plan")} onPress={plan} loading={busy} style={{ marginTop: 10 }} />
           ) : !state.from || !state.to ? (
             <View style={{ marginTop: 10, backgroundColor: colors.elevated, borderRadius: radius.lg, padding: 14, ...shadow(1) }}>
               <Txt variant="subhead" color="secondary">{t("route.hint")}</Txt>
@@ -217,7 +217,7 @@ export default function RouteScreen() {
         <View style={{ flex: 0.45, backgroundColor: colors.background }}>
           <View style={{ flexDirection: "row", alignItems: "center", padding: 16, gap: 12 }}>
             <View style={{ flex: 1 }}>
-              <Txt variant="title3">{t("route.summary", { distance: fmtDistance(t, route.distance_m, fmtNumber), duration: fmtDuration(t, route.duration_s) })}</Txt>
+              <Txt testID="route-summary" variant="title3">{t("route.summary", { distance: fmtDistance(t, route.distance_m, fmtNumber), duration: fmtDuration(t, route.duration_s) })}</Txt>
               <Txt variant="caption" color="tertiary">Powered by Geoapify</Txt>
             </View>
             <Button title={t("route.start")} size="medium" icon="directions"

@@ -257,7 +257,7 @@ export default function MapScreen() {
             {query ? <Pressable hitSlop={10} onPress={() => { setQuery(""); Keyboard.dismiss(); }}><Icon name="close" size={16} color={colors.textSecondary} /></Pressable> : null}
           </View>
           <View>
-            <IconButton name="sliders" size={46} label={t("map.filters")} onPress={() => router.push("/filters")} />
+            <IconButton testID="open-filters" name="sliders" size={46} label={t("map.filters")} onPress={() => router.push("/filters")} />
             {activeFilterCount ? (
               <View style={{ position: "absolute", top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
                 <Txt variant="captionMedium" style={{ color: "#FFF" }}>{activeFilterCount}</Txt>
@@ -303,7 +303,7 @@ export default function MapScreen() {
               <Txt variant="footnoteMedium">{t("map.zoomIn")}</Txt>
             </View>
           ) : moved || !scanned ? (
-            <Pressable accessibilityRole="button" onPress={() => scan(view.current)}
+            <Pressable testID="scan-area" accessibilityRole="button" onPress={() => scan(view.current)}
               style={({ pressed }) => ({ alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 18, height: 40, opacity: pressed ? 0.85 : 1, ...shadow(2) })}>
               <Icon name="scan" size={16} color={colors.primaryText} weight="semibold" />
               <Txt variant="subheadMedium" color="onBrand">{t("map.scanArea")}</Txt>
@@ -329,7 +329,7 @@ export default function MapScreen() {
         <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: LIST_HEIGHT, backgroundColor: colors.elevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, ...shadow(3) }}>
           <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6, gap: 8 }}>
             <View style={{ flex: 1 }}>
-              <Txt variant="headline">{t("map.inThisArea", { n: fmtNumber(places.length) })}</Txt>
+              <Txt testID="area-count" variant="headline">{t("map.inThisArea", { n: fmtNumber(places.length) })}</Txt>
               <Txt variant="caption" color="tertiary">{t("map.tapHint")}</Txt>
             </View>
             <IconButton name="chevronDown" size={34} label={t("map.hideList")} onPress={() => setListOpen(false)} />
@@ -379,7 +379,7 @@ function PlaceRow({ place, active, added, distance, onPress, onToggle }: { place
   const { t } = useI18n();
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress}
+    <Pressable testID="place-row" onPress={onPress}
       style={({ pressed }) => ({ height: ROW_H, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16,
         backgroundColor: active ? colors.accent + "1F" : pressed ? colors.surfaceAlt : "transparent",
         borderLeftWidth: 4, borderLeftColor: active ? colors.accent : "transparent" })}>

@@ -52,9 +52,10 @@ type ButtonProps = {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   full?: boolean;
+  testID?: string;
 };
 
-export function Button({ title, onPress, kind = "filled", size = "large", icon, loading, disabled, style, full }: ButtonProps) {
+export function Button({ title, onPress, kind = "filled", size = "large", icon, loading, disabled, style, full, testID }: ButtonProps) {
   const { colors } = useTheme();
   const bg =
     kind === "filled" ? colors.primary
@@ -70,6 +71,7 @@ export function Button({ title, onPress, kind = "filled", size = "large", icon, 
   const h = size === "large" ? 50 : size === "medium" ? 40 : 32;
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!(disabled || loading) }}
       disabled={disabled || loading}
@@ -91,10 +93,11 @@ export function Button({ title, onPress, kind = "filled", size = "large", icon, 
   );
 }
 
-export function IconButton({ name, onPress, size = 40, color, background, label }: { name: IconName; onPress?: () => void; size?: number; color?: string; background?: string; label: string }) {
+export function IconButton({ name, onPress, size = 40, color, background, label, testID }: { name: IconName; onPress?: () => void; size?: number; color?: string; background?: string; label: string; testID?: string }) {
   const { colors } = useTheme();
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={8}

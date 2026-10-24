@@ -24,7 +24,7 @@ export default function Filters() {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Txt variant="title2" style={{ flex: 1 }}>{t("filter.title")}</Txt>
           {count ? <Button title={t("filter.reset")} kind="plain" size="medium" onPress={() => mapFilters.set({ categories: [], amenities: [] })} /> : null}
-          <Button title={t("common.done")} kind="tinted" size="medium" onPress={() => router.back()} />
+          <Button testID="filters-done" title={t("common.done")} kind="tinted" size="medium" onPress={() => router.back()} />
         </View>
         {CATEGORY_GROUPS.map((g) => (
           <View key={g.key} style={{ marginTop: 20 }}>
