@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Icon } from "@/components/Icon";
+import { ResendEmail } from "@/components/ResendEmail";
 import { Button, Field, Screen, Txt } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { authErrorText, isEmail, isUsername } from "@/lib/authErrors";
@@ -52,6 +53,12 @@ export default function SignUp() {
           <Icon name="mail" size={54} color={colors.primary} />
           <Txt variant="title2">{t("auth.checkEmail")}</Txt>
           <Txt variant="body" color="secondary" style={{ textAlign: "center" }}>{t("auth.checkEmailBody", { email: sentTo })}</Txt>
+          <Txt variant="footnote" color="tertiary" style={{ textAlign: "center" }}>{t("auth.checkSpam")}</Txt>
+        </View>
+        <View style={{ marginTop: 32, gap: 10 }}>
+          <ResendEmail email={sentTo} startWithCooldown />
+          <Button title={t("auth.goSignIn")} onPress={() => router.replace("/sign-in")} full />
+          <Button title={t("auth.back")} kind="plain" icon="back" onPress={() => setSentTo(null)} full />
         </View>
       </Screen>
     );

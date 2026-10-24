@@ -227,22 +227,23 @@ export function Field({ label, hint, error, style, multiline, ref, ...rest }: Fi
 
 // --- Seçilebilir çip -------------------------------------------------------
 
-export function Chip({ label, selected, onPress, icon, color }: { label: string; selected?: boolean; onPress?: () => void; icon?: IconName; color?: string }) {
+export function Chip({ label, selected, onPress, icon, color, size = "medium" }: { label: string; selected?: boolean; onPress?: () => void; icon?: IconName; color?: string; size?: "medium" | "large" }) {
   const { colors } = useTheme();
   const active = color ?? colors.primary;
+  const large = size === "large";
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
       onPress={() => { Haptics.selectionAsync().catch(() => {}); onPress?.(); }}
       style={({ pressed }) => ({
-        flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 12, borderRadius: radius.pill,
+        flexDirection: "row", alignItems: "center", gap: large ? 8 : 6, height: large ? 42 : 34, paddingHorizontal: large ? 16 : 12, borderRadius: radius.pill,
         backgroundColor: selected ? active : colors.surface, opacity: pressed ? 0.8 : 1,
-        borderWidth: StyleSheet.hairlineWidth, borderColor: selected ? active : colors.separator,
+        borderWidth: large ? 1.5 : StyleSheet.hairlineWidth, borderColor: selected ? active : large ? active + "66" : colors.separator,
       })}
     >
-      {icon ? <Icon name={icon} size={15} color={selected ? "#FFFFFF" : active} weight="medium" /> : null}
-      <Txt variant="subheadMedium" style={{ color: selected ? "#FFFFFF" : colors.text }}>{label}</Txt>
+      {icon ? <Icon name={icon} size={large ? 18 : 15} color={selected ? "#FFFFFF" : active} weight={large ? "semibold" : "medium"} /> : null}
+      <Txt variant={large ? "bodyMedium" : "subheadMedium"} style={{ color: selected ? "#FFFFFF" : colors.text }}>{label}</Txt>
     </Pressable>
   );
 }
