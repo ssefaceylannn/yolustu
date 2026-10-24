@@ -151,8 +151,8 @@ async function importPlaces() {
       if (lat == null || lng == null) continue;
       rows.push({ t: el.type, i: el.id, c, n: t["name:tr"] || t.name || "", lat, lng, tags: cleanTags(t) });
     }
-    for (let k = 0; k < rows.length; k += 2000) {
-      total += (await rpc("import_osm_places", { p_rows: rows.slice(k, k + 2000) })) ?? 0;
+    for (let k = 0; k < rows.length; k += 500) {
+      total += (await rpc("import_osm_places", { p_rows: rows.slice(k, k + 500) })) ?? 0;
     }
     console.log(`  ${rows.length} yer işlendi`);
     await new Promise((r) => setTimeout(r, 15000)); // Overpass'e nazik ol
