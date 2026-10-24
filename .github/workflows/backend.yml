@@ -14,8 +14,8 @@ jobs:
     name: Veritabanı testleri
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Test paketleri
@@ -33,7 +33,7 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       ORS_API_KEY: ${{ secrets.ORS_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Gizli anahtarları kontrol et
         id: secrets
         run: |
