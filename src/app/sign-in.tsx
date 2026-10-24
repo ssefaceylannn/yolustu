@@ -1,5 +1,6 @@
+import { router } from "expo-router";
 import { useState } from "react";
-import { Alert } from "react-native";
+import { Alert, View } from "react-native";
 import { Button, Field, Screen, Txt } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { authErrorText, isEmail } from "@/lib/authErrors";
@@ -35,6 +36,10 @@ export default function SignIn() {
       {error ? <Txt variant="footnote" color="danger" style={{ marginTop: 12, marginLeft: 4 }}>{error}</Txt> : null}
       <Button title={t("welcome.signIn")} onPress={submit} loading={busy} style={{ marginTop: 24 }} />
       <Button title={t("auth.forgot")} kind="plain" size="medium" onPress={forgot} style={{ marginTop: 8 }} />
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 28 }}>
+        <Txt variant="subhead" color="secondary">{t("auth.noAccount")}</Txt>
+        <Button title={t("welcome.signUp")} kind="tinted" size="small" onPress={() => router.replace("/sign-up")} />
+      </View>
     </Screen>
   );
 }

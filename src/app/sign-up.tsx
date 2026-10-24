@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Icon } from "@/components/Icon";
@@ -65,6 +66,10 @@ export default function SignUp() {
       <Field label={t("auth.password")} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" textContentType="newPassword" hint={t("auth.passwordHint")} />
       {error ? <Txt variant="footnote" color="danger" style={{ marginTop: 12, marginLeft: 4 }}>{error}</Txt> : null}
       <Button title={t("welcome.signUp")} onPress={submit} loading={busy} style={{ marginTop: 24 }} />
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 28 }}>
+        <Txt variant="subhead" color="secondary">{t("auth.haveAccount")}</Txt>
+        <Button title={t("welcome.signIn")} kind="tinted" size="small" onPress={() => router.replace("/sign-in")} />
+      </View>
     </Screen>
   );
 }

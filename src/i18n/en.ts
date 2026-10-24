@@ -43,6 +43,8 @@ const en: Record<TKey, string> = {
   "auth.usernameHint": "3–24 characters: lowercase letters, digits, dot, underscore",
   "auth.passwordHint": "At least 8 characters",
   "auth.forgot": "Forgot password",
+  "auth.noAccount": "No account yet?",
+  "auth.haveAccount": "Already have an account?",
   "auth.resetSent": "We sent a password reset link to your email.",
   "auth.checkEmail": "Verify your email",
   "auth.checkEmailBody": "We sent a verification link to {email}. You can sign in after opening it.",

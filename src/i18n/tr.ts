@@ -44,6 +44,8 @@ const tr = {
   "auth.usernameHint": "3–24 karakter: küçük harf, rakam, nokta, alt çizgi",
   "auth.passwordHint": "En az 8 karakter",
   "auth.forgot": "Şifremi unuttum",
+  "auth.noAccount": "Hesabın yok mu?",
+  "auth.haveAccount": "Zaten hesabın var mı?",
   "auth.resetSent": "Şifre sıfırlama bağlantısı e-postana gönderildi.",
   "auth.checkEmail": "E-postanı doğrula",
   "auth.checkEmailBody": "{email} adresine bir doğrulama bağlantısı gönderdik. Bağlantıya tıkladıktan sonra giriş yapabilirsin.",
