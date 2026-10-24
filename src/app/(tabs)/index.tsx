@@ -341,6 +341,10 @@ export default function MapScreen() {
             contentContainerStyle={{ paddingBottom: 12 }}
             getItemLayout={(_, i) => ({ length: ROW_H, offset: ROW_H * i, index: i })}
             onScrollToIndexFailed={() => {}}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            removeClippedSubviews
             ListEmptyComponent={<Txt variant="subhead" color="secondary" style={{ padding: 16 }}>{t("map.noneInArea")}</Txt>}
             renderItem={({ item }) => (
               <PlaceRow place={item} active={selected?.id === item.id} added={inRoute(item)}
