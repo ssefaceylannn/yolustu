@@ -1,0 +1,58 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["supabase/**", "docs/**", "scripts/**", "**/*.md", ".github/workflows/backend.yml", ".github/workflows/osm-import.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Paketler
+        run: npm ci --no-audit --no-fund
+      - name: Tür ve kod kontrolü
+        run: npx tsc --noEmit
+      - name: Android projesini oluştur
+        run: npx expo prebuild --platform android --no-install
+      - name: APK derle
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+      - name: APK'yı adlandır
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/app-release.apk out/yolustu.apk
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yolustu-apk
+          path: out/yolustu.apk
+      - name: Test sürümünü yayınla
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-build
+          name: "Test sürümü"
+          body: "Son derleme: ${{ github.sha }} (${{ github.run_number }}). Tablete yüklemek için yolustu.apk dosyasını indirin."
+          prerelease: true
+          make_latest: false
+          files: out/yolustu.apk

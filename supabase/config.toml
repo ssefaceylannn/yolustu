@@ -1,0 +1,4 @@
+project_id = "yolustu"
+
+[functions.route]
+verify_jwt = true

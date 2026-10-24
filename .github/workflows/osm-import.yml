@@ -1,0 +1,30 @@
+name: Harita verisi (OpenStreetMap)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Ne aktarılsın?"
+        type: choice
+        options: [all, provinces, places]
+        default: all
+  schedule:
+    - cron: "17 3 1 * *" # her ayın 1'i, yerleri güncelle
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: https://jhnazkhvdtwqersdvrco.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Paket
+        working-directory: scripts
+        run: npm init -y >/dev/null && npm install --no-audit --no-fund osmtogeojson@3.0.0-beta.5
+      - name: Aktar
+        run: node scripts/osm-import.mjs "${{ github.event.inputs.mode || 'places' }}"
