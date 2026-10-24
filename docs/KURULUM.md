@@ -20,6 +20,19 @@ Bu anahtarlar sadece GitHub'da durur; uygulamanın içine konmaz.
 Supabase → **Authentication → URL Configuration → Redirect URLs** → `yolustu://**` ekle.
 (E-posta doğrulama ve şifre sıfırlama bağlantıları uygulamayı açar.)
 
+### E-posta şablonları (kodla doğrulama)
+Authentication → Emails → Templates:
+- **Confirm signup** — konu `Yolüstü doğrulama kodun`, içerik:
+  ```html
+  <h2>Yolüstü hesabını onayla</h2>
+  <p>Doğrulama kodun:</p>
+  <p style="font-size:32px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p>
+  <p>Bu kodu uygulamaya gir. Kod 1 saat geçerlidir. Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.</p>
+  ```
+- **Reset password** — konu `Yolüstü şifre sıfırlama kodun`, aynı içerik (başlık `Şifreni sıfırla`).
+
+Uygulama kodu `verifyOtp` ile doğrular (kayıt: `signup`, şifre: `recovery`). Ücretsiz Supabase e-posta servisi saatte birkaç e-postayla sınırlıdır; yayından önce kendi SMTP (ör. Resend, Brevo) bağlanmalı.
+
 ## 3. İlk yayın
 
 1. **Actions → Sunucu (Supabase) → Run workflow**: veritabanı şeması, güvenlik kuralları ve rota fonksiyonu yüklenir.

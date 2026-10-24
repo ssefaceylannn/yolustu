@@ -1,11 +1,12 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
+import { OtpVerify } from "@/components/OtpVerify";
 import { ResendEmail } from "@/components/ResendEmail";
 import { Button, Field, Screen, Txt } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { authErrorText, isEmail } from "@/lib/authErrors";
-import { AUTH_RESET_URL, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function SignIn() {
   const { t } = useI18n();
@@ -29,19 +30,14 @@ export default function SignIn() {
     }
   };
 
-  const forgot = async () => {
-    if (!isEmail(email)) return setError(t("auth.err.email"));
-    const { error: e } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: AUTH_RESET_URL });
-    if (e) setError(authErrorText(t, e));
-    else Alert.alert(t("auth.forgot"), t("auth.resetSent"));
-  };
+  const forgot = () => router.push({ pathname: "/forgot", params: isEmail(email) ? { email: email.trim() } : {} });
 
   return (
     <Screen>
       <Field label={t("auth.email")} value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" />
       <Field label={t("auth.password")} value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" textContentType="password" onSubmitEditing={submit} />
       {error ? <Txt variant="footnote" color="danger" style={{ marginTop: 12, marginLeft: 4 }}>{error}</Txt> : null}
-      {unconfirmed ? <View style={{ marginTop: 12 }}><ResendEmail email={email.trim()} /></View> : null}
+      {unconfirmed ? <View style={{ marginTop: 4 }}><OtpVerify email={email.trim()} /><View style={{ marginTop: 10 }}><ResendEmail email={email.trim()} /></View></View> : null}
       <Button title={t("welcome.signIn")} onPress={submit} loading={busy} style={{ marginTop: 24 }} />
       <Button title={t("auth.forgot")} kind="plain" size="medium" onPress={forgot} style={{ marginTop: 8 }} />
       <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 28 }}>

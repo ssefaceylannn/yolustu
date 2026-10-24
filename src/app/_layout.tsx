@@ -1,5 +1,6 @@
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from "@expo-google-fonts/inter";
 import { Stack } from "expo-router";
+import { preloadMapStyle } from "@/lib/mapStyle";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -10,6 +11,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+preloadMapStyle();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
@@ -59,6 +61,7 @@ function Navigation({ fontsReady }: { fontsReady: boolean }) {
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
           <Stack.Screen name="sign-in" options={{ title: t("welcome.signIn") }} />
           <Stack.Screen name="sign-up" options={{ title: t("welcome.signUp") }} />
+          <Stack.Screen name="forgot" options={{ title: t("auth.forgot") }} />
         </Stack.Protected>
         <Stack.Protected guard={signedIn && !consented}>
           <Stack.Screen name="consent" options={{ headerShown: false }} />

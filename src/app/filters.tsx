@@ -1,5 +1,4 @@
 import { router } from "expo-router";
-import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { Button, Chip, Txt } from "@/components/ui";
 import { useI18n, type TKey } from "@/i18n";
@@ -12,15 +11,21 @@ import { useTheme } from "@/theme/ThemeProvider";
 export default function Filters() {
   const { t } = useI18n();
   const { colors } = useTheme();
-  const current = useStore(mapFilters);
-  const [cats, setCats] = useState<Category[]>(current.categories);
-  const [ams, setAms] = useState<(AmenityKey | "free")[]>(current.amenities);
+  // Seçimler anında uygulanır (yarım açılan sayfada alttaki düğme görünmeyebiliyordu)
+  const { categories: cats, amenities: ams } = useStore(mapFilters);
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+  const setCats = (categories: Category[]) => mapFilters.set({ categories });
+  const setAms = (amenities: (AmenityKey | "free")[]) => mapFilters.set({ amenities });
+  const count = cats.length + ams.length;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-        <Txt variant="title2">{t("filter.title")}</Txt>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Txt variant="title2" style={{ flex: 1 }}>{t("filter.title")}</Txt>
+          {count ? <Button title={t("filter.reset")} kind="plain" size="medium" onPress={() => mapFilters.set({ categories: [], amenities: [] })} /> : null}
+          <Button title={t("common.done")} kind="tinted" size="medium" onPress={() => router.back()} />
+        </View>
         {CATEGORY_GROUPS.map((g) => (
           <View key={g.key} style={{ marginTop: 20 }}>
             <Txt variant="footnoteMedium" color="secondary" style={{ marginBottom: 8, textTransform: "uppercase" }}>{t(`group.${g.key}` as TKey)}</Txt>
@@ -36,10 +41,6 @@ export default function Filters() {
           </View>
         </View>
       </ScrollView>
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 12, padding: 20, paddingBottom: 34, backgroundColor: colors.background }}>
-        <Button title={t("filter.reset")} kind="gray" style={{ flex: 1 }} onPress={() => { setCats([]); setAms([]); }} />
-        <Button title={t("filter.apply")} style={{ flex: 2 }} onPress={() => { mapFilters.set({ categories: cats, amenities: ams }); router.back(); }} />
-      </View>
     </View>
   );
 }

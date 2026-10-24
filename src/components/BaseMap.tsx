@@ -1,7 +1,8 @@
 import { Camera, Map, type CameraRef, type MapProps, type ViewStateChangeEvent } from "@maplibre/maplibre-react-native";
 import type { ReactNode, Ref } from "react";
 import { StyleSheet, View, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from "react-native";
-import { MAP_STYLE_DARK, MAP_STYLE_LIGHT, TURKEY_CENTER } from "@/lib/config";
+import { TURKEY_CENTER } from "@/lib/config";
+import { useMapStyle } from "@/lib/mapStyle";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Txt } from "./ui";
 
@@ -21,12 +22,14 @@ type Props = {
 
 // Tüm haritaların ortak temeli: tema uyumlu stil + OSM atfı
 export function BaseMap({ cameraRef, initialCenter = TURKEY_CENTER, initialZoom = 5.2, children, style, onRegionDidChange, onRegionIsChanging, onPress, onLongPress, attributionBottom = 6, interactive = true }: Props) {
-  const { isDark, colors } = useTheme();
+  const { colors } = useTheme();
+  const mapStyle = useMapStyle();
+  if (!mapStyle) return <View style={[{ flex: 1, backgroundColor: colors.surfaceAlt }, style]} />;
   return (
     <View style={[{ flex: 1 }, style]}>
       <Map
         style={StyleSheet.absoluteFill}
-        mapStyle={isDark ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
+        mapStyle={mapStyle as any}
         logo={false}
         attribution={false}
         compass={interactive}

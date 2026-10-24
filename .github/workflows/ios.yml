@@ -1,0 +1,73 @@
+name: iOS (imzasız IPA)
+
+# Mac olmadan iPhone'a test yüklemesi için imzasız .ipa üretir.
+# Dosya bilgisayarda Sideloadly ile kendi Apple kimliğinle imzalanıp iPhone'a yüklenir
+# (ücretsiz hesapla 7 gün geçerli). macOS dakikaları pahalı olduğu için elle çalıştırılır.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: En yeni Xcode'u seç
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Xcode: $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+      - name: Paketler
+        run: npm ci --no-audit --no-fund
+      - name: Tür ve kod kontrolü
+        run: npx tsc --noEmit
+      - name: iOS projesini oluştur
+        run: npx expo prebuild --platform ios --no-install
+      - name: CocoaPods
+        working-directory: ios
+        run: pod install
+      - name: Derle (imzasız)
+        working-directory: ios
+        run: |
+          WS=$(ls -d *.xcworkspace | head -1)
+          SCHEME="${WS%.xcworkspace}"
+          echo "Çalışma alanı: $WS, şema: $SCHEME"
+          set -o pipefail
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination "generic/platform=iOS" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tail -n 200
+      - name: IPA paketle
+        run: |
+          APP=$(ls -d ios/build/Build/Products/Release-iphoneos/*.app | head -1)
+          echo "Uygulama: $APP"
+          mkdir -p out/Payload
+          cp -R "$APP" out/Payload/
+          (cd out && zip -qry yolustu.ipa Payload)
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yolustu-ipa
+          path: out/yolustu.ipa
+      - name: iPhone test sürümünü yayınla
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-test
+          name: "iPhone test sürümü"
+          body: "Son derleme: ${{ github.sha }} (${{ github.run_number }}). yolustu.ipa dosyasını bilgisayara indirip Sideloadly ile iPhone'a yükleyin."
+          prerelease: true
+          make_latest: false
+          files: out/yolustu.ipa
