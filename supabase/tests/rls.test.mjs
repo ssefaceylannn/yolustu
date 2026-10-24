@@ -87,7 +87,7 @@ ok(stats.checkins === 2 && stats.provinces === 1 && stats.km > 40, "istatistikle
 rows = await as(A, () => q(`select * from visited_provinces()`));
 ok(rows.length === 1 && rows[0].code === 34, "ziyaret edilen il");
 rows = await as(B, () => q(`select * from checkins`));
-ok(rows.length === 2, "açık profilin check-in'leri görünür");
+ok(rows.length === 0, "başkasının check-in geçmişi (zaman+yer) görünmemeli");
 await as(A, () => q(`update profiles set is_public = false where id = $1`, [A]));
 rows = await as(B, () => q(`select * from checkins`));
 ok(rows.length === 0, "gizli profilin check-in'leri görünmemeli");
@@ -121,12 +121,17 @@ for (const u of [A, B]) {
 }
 await as(C, () => q(`select update_presence(41.01, 29.04)`)); // C görünür değil, kaydedilmemeli
 ok((await q(`select count(*)::int n from presence`))[0].n === 2, "görünür olmayanın konumu kaydedilmemeli");
+ok((await as(C, () => q(`select nearby_count(41.0, 29.0) n`)))[0].n === 0, "görünür olmayan sayı göremez");
+await as(C, () => q(`update profile_private set visible_nearby = true where id = $1`, [C]));
+await as(C, () => q(`select update_presence(41.01, 29.04)`));
+await as(B, () => q(`select update_presence(39.9, 32.8)`)); // 10 dk içinde başka şehre ışınlanamaz
+ok((await q(`select ST_Y(cell::geometry) lat from presence where user_id = $1`, [B]))[0].lat > 41, "konum kısa sürede uzağa taşınamamalı");
 const cell = (await q(`select ST_Y(cell::geometry) lat, ST_X(cell::geometry) lng from presence where user_id = $1`, [A]))[0];
 ok(Math.abs(cell.lat - 41.02) < 1e-9 && Math.abs(cell.lng - 29.04) < 1e-9, "konum ızgaraya yuvarlanmalı: " + JSON.stringify(cell));
 ok((await as(B, () => q(`select * from presence`))).length === 0, "presence tablosu okunamamalı");
-ok((await as(B, () => q(`select nearby_count(41.0, 29.0) n`)))[0].n === 1, "B yakınında 1 kişi görmeli");
+ok((await as(B, () => q(`select nearby_count(36.0, 36.0) n`)))[0].n === 2, "sayım istemcinin verdiği koordinattan değil kendi hücresinden");
 ok((await as(C, () => q(`select nearby_count(41.0, 29.0) n`)))[0].n === 2, "C yakınında 2 kişi görmeli");
-ok(await as(B, () => throws(() => q(`select * from nearby_candidates($1, 41, 29, 25)`, [B]))), "aday listesi doğrudan çağrılamamalı");
+ok(await as(B, () => throws(() => q(`select * from nearby_candidates($1, 25)`, [B]))), "aday listesi doğrudan çağrılamamalı");
 
 // Toplu mesaj
 ok(await as(C, () => throws(() => q(`select send_broadcast(41.0, 29.0, 'siktir git')`))), "küfürlü yayın reddedilmeli");
@@ -143,7 +148,7 @@ ok((await as(B, () => q(`select * from messages`))).length === 0, "üçüncü ki
 ok((await as(B, () => q(`select * from conversations`))).length === 0, "üçüncü kişi sohbeti görmemeli");
 await as(C, () => q(`insert into messages (conversation_id, body) values ($1, 'Teşekkürler!')`, [conv]));
 ok(await as(B, () => throws(() => q(`insert into messages (conversation_id, body) values ($1, 'araya giriyorum')`, [conv]))), "dışarıdan mesaj eklenememeli");
-await as(C, () => q(`update messages set body = 'değişti' where sender_id = $1`, [C]));
+await as(C, () => q(`update messages set body = 'değişti' where sender_id = $1`, [C]).catch(() => null));
 ok((await q(`select count(*)::int n from messages where body = 'değişti'`))[0].n === 0, "gönderen mesajını değiştirememeli");
 ok(await as(A, () => throws(() => q(`update messages set body = 'değişti' where sender_id = $1`, [C]))), "karşı taraf mesaj içeriğini değiştirememeli");
 await as(A, () => q(`update messages set read_at = now() where sender_id = $1`, [C]));
@@ -162,14 +167,33 @@ ok(await as(B, () => throws(() => q(`select get_location_share($1)`, [conv]))), 
 // Engelleme
 await as(A, () => q(`insert into blocks (blocked_id) values ($1)`, [C]));
 ok(await as(C, () => throws(() => q(`insert into messages (conversation_id, body) values ($1, 'selam?')`, [conv]))), "engellenen mesaj atamamalı");
-ok((await as(C, () => q(`select nearby_count(41.0, 29.0) n`)))[0].n === 1, "engelleyen yakındakiler listesinde sayılmamalı");
+ok((await as(C, () => q(`select nearby_count(41.0, 29.0) n`)))[0].n === 2, "engelleme sayıyı değiştirmez (kimin nerede olduğu anlaşılamaz)");
+ok((await as(C, () => q(`select get_location_share($1) s`, [conv])))[0].s.status === "none", "engelden sonra paylaşılan konum görünmez");
 ok((await as(C, () => q(`select * from blocks`))).length === 0, "engel listesi sadece sahibine görünür");
 
 // Şikâyet → otomatik gizleme
 for (const u of [B, C]) await as(u, () => q(`insert into reports (target_type, target_id, reason) values ('place', $1, 'wrong_info')`, [String(newPlace)]));
 const D = (await q(`insert into auth.users (email) values ('d@x.com') returning id`))[0].id;
+const E = (await q(`insert into auth.users (email) values ('e@x.com') returning id`))[0].id; // yeni hesap
+await as(E, () => q(`insert into reports (target_type, target_id, reason) values ('place', $1, 'wrong_info')`, [String(newPlace)]));
+ok((await as(B, () => q(`select * from places where id = $1`, [newPlace]))).length === 1, "yeni hesapların şikâyeti otomatik gizlemeye sayılmaz");
+await q(`update auth.users set created_at = now() - interval '5 days' where id = $1`, [D]);
 await as(D, () => q(`insert into reports (target_type, target_id, reason) values ('place', $1, 'wrong_info')`, [String(newPlace)]));
 ok((await as(B, () => q(`select * from places where id = $1`, [newPlace]))).length === 0, "3 şikâyet alan kullanıcı yeri gizlenmeli");
+
+// Gizlenen yorum geri açılamaz, yorum başka yere taşınamaz
+const rv = (await q(`select id from place_reviews where user_id = $1 limit 1`, [B]))[0].id;
+await q(`update place_reviews set status = 'hidden' where id = $1`, [rv]);
+await as(B, () => q(`update place_reviews set status = 'active' where id = $1`, [rv]).catch(() => null));
+ok((await q(`select status from place_reviews where id = $1`, [rv]))[0].status === "hidden", "gizlenen yorum yazarınca geri açılamamalı");
+ok(await as(B, () => throws(() => q(`update place_reviews set place_id = $2 where id = $1`, [rv, P2]))), "yorum başka yere taşınamamalı");
+
+// Fotoğraf yolu ve yer etiketleri
+ok(await as(B, () => throws(() => q(`insert into place_photos (place_id, path) values ($1, $2)`, [P1, `${B}/../${A}/x.jpg`]))), "başkasının klasörüne fotoğraf yolu yazılamamalı");
+await as(B, () => q(`insert into place_photos (place_id, path) values ($1, $2)`, [P1, `${B}/${P1}/0f8fad5b-d9cb-469f-a165-70867728950e.jpg`]));
+ok(await as(B, () => throws(() => q(`update profiles set avatar_path = $2 where id = $1`, [B, `${A}/0f8fad5b-d9cb-469f-a165-70867728950e.jpg`]))), "başkasının fotoğrafı profil resmi yapılamamalı");
+const tp = (await as(B, () => q(`select add_place('water', 'Çeşme', null, 41.2, 29.2, '{"phone":1,"website":"javascript:alert(1)","water":"<b>"}') id`)))[0].id;
+ok(JSON.stringify((await q(`select tags from places where id = $1`, [tp]))[0].tags) === "{}", "geçersiz etiket değerleri atılmalı");
 
 // Kontrol listesi
 await as(A, () => q(`insert into checklist_items (label) values ('Gaz vanası')`));

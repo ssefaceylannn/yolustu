@@ -29,7 +29,7 @@ export default function ReviewSheet() {
     setBusy(true);
     const row = { place_id: Number(placeId), rating, body: body.trim() || null };
     const { error } = existing
-      ? await supabase.from("place_reviews").update(row).eq("id", existing)
+      ? await supabase.from("place_reviews").update({ rating: row.rating, body: row.body }).eq("id", existing)
       : await supabase.from("place_reviews").insert(row);
     setBusy(false);
     if (error) return Alert.alert(t("place.writeReview"), error.message.includes("row-level") || error.code === "42501" ? t("review.inappropriate") : t("common.error"));
