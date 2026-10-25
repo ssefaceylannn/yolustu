@@ -1,9 +1,9 @@
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from "@expo-google-fonts/inter";
-import { Stack } from "expo-router";
+import { router, Stack, useSegments } from "expo-router";
 import { preloadMapStyle } from "@/lib/mapStyle";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { I18nProvider, useI18n } from "@/i18n";
@@ -38,6 +38,22 @@ function Navigation({ fontsReady }: { fontsReady: boolean }) {
   const show = ready && fontsReady && settingsLoaded;
 
   useEffect(() => { if (show) SplashScreen.hideAsync().catch(() => {}); }, [show]);
+
+  // Oturum yokken uygulama karşılama ekranından başlar. (Korumalı rota yönlendirmesi
+  // aksi halde alfabetik ilk açık ekranı — ör. "Şifremi unuttum" — seçiyordu.)
+  // E-posta bağlantıları (auth/...) ve yasal metinler olduğu gibi açılır.
+  const segments = useSegments();
+  const top = segments[0] as string | undefined;
+  const wasSignedIn = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!show) return;
+    const prev = wasSignedIn.current;
+    wasSignedIn.current = signedIn;
+    // Sadece açılışta ve çıkış yapıldığında bir kez
+    if (signedIn || prev === false) return;
+    if (top === "welcome" || top === "auth" || top === "legal") return;
+    setTimeout(() => router.replace("/welcome"), 0);
+  }, [show, signedIn, top]);
   if (!show) return <View style={{ flex: 1, backgroundColor: colors.background }} />;
 
   const header = {

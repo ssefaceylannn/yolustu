@@ -5,11 +5,12 @@ appId: app.yolustu
     clearState: true
     permissions:
       all: allow
+# Oturum yokken karşılama ekranı açılmalı
 - extendedWaitUntil:
     visible:
-      id: email
+      id: welcome-signin
     timeout: 90000
-    optional: true
+- takeScreenshot: 00-welcome
 - runFlow:
     when:
       visible:
