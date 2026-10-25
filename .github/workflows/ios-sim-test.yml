@@ -37,14 +37,25 @@ jobs:
           XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
           sudo xcode-select -s "$XC/Contents/Developer"
           xcodebuild -version
+      # Uygulama kodu değişmediyse (sadece test senaryosu) önceki derleme kullanılır
+      - name: Derleme önbelleği
+        id: appcache
+        uses: actions/cache@v4
+        with:
+          path: sim-app
+          key: sim-app-${{ hashFiles('src/**', 'assets/**', 'app.json', 'package-lock.json') }}
       - name: Paketler
+        if: steps.appcache.outputs.cache-hit != 'true'
         run: npm ci --no-audit --no-fund
       - name: iOS projesi
+        if: steps.appcache.outputs.cache-hit != 'true'
         run: npx expo prebuild --platform ios --no-install
       - name: CocoaPods
+        if: steps.appcache.outputs.cache-hit != 'true'
         working-directory: ios
         run: pod install
       - name: Simülatör için derle
+        if: steps.appcache.outputs.cache-hit != 'true'
         working-directory: ios
         run: |
           WS=$(ls -d *.xcworkspace | head -1); SCHEME="${WS%.xcworkspace}"
@@ -52,13 +63,14 @@ jobs:
           xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
             -sdk iphonesimulator -destination "generic/platform=iOS Simulator" -derivedDataPath build \
             CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES build | tail -n 80
+          mkdir -p ../sim-app && cp -R build/Build/Products/Release-iphonesimulator/*.app ../sim-app/
       - name: Simülatörü aç ve uygulamayı kur
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
-          APP=$(ls -d ios/build/Build/Products/Release-iphonesimulator/*.app | head -1)
+          APP=$(ls -d sim-app/*.app | head -1)
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl location "$UDID" set 41.0082,28.9784
           xcrun simctl privacy "$UDID" grant location app.yolustu || true
