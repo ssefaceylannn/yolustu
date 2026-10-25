@@ -20,7 +20,8 @@ export default function BroadcastSheet() {
     setBusy(false);
     if (error) {
       const m = error.message;
-      return Alert.alert(t("travelers.broadcast"), m.includes("rate_limited") ? t("travelers.broadcastLimit") : m.includes("inappropriate") ? t("review.inappropriate") : t("common.error"));
+      return Alert.alert(t("travelers.broadcast"), m.includes("rate_limited") ? t("travelers.broadcastLimit") : m.includes("inappropriate") ? t("review.inappropriate")
+        : m.includes("not_visible") ? t("travelers.broadcastNeedVisible") : /network|fetch/i.test(m) ? t("common.offline") : t("common.error"));
     }
     Alert.alert(t("travelers.broadcast"), data ? t("travelers.broadcastSent", { n: data as number }) : t("travelers.broadcastNoOne"));
     router.back();

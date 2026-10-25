@@ -230,6 +230,7 @@ const tr = {
   "route.noRoute": "Bu iki nokta arasında rota bulunamadı.",
   "route.start": "Navigasyonu başlat",
   "route.addStop": "Durak olarak ekle",
+  "route.searchStop": "Durak eklemek için yer ara",
   "route.stops": "Duraklar",
   "route.hint": "Nereden ve nereye gideceğini seç; yol üstündeki kamp alanlarını, seyir noktalarını ve servisleri göstereyim.",
 
@@ -322,6 +323,7 @@ const tr = {
   "travelers.broadcastPlaceholder": "Selam! Yakında su alınabilecek bir yer bilen var mı?",
   "travelers.broadcastSent": "Mesajın {n} yolcuya gönderildi.",
   "travelers.broadcastNoOne": "Şu an yakınında mesaj alabilecek yolcu yok.",
+  "travelers.broadcastNeedVisible": "Mesaj gönderebilmek için önce Yolcular ekranında görünür olmalısın.",
   "travelers.broadcastLimit": "Bugünlük mesaj hakkın doldu.",
   "travelers.inbox": "Gelen mesajlar",
   "travelers.conversations": "Sohbetler",

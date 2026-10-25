@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BaseMap } from "@/components/BaseMap";
+import { BottomSheet } from "@/components/BottomSheet";
 import { StopToggle } from "@/components/StopToggle";
 import { Icon } from "@/components/Icon";
 import { Button, Chip, IconButton, Segmented, shadow, Txt } from "@/components/ui";
@@ -13,6 +14,7 @@ import { openRouteInGoogle } from "@/lib/directions";
 import { catLabel, fmtDistance, fmtDuration, placeName } from "@/lib/format";
 import { getCurrentCoords, useLastLocation } from "@/lib/location";
 import { addRouteStop, MAX_STOPS, removeRouteStop, routeState, samePoint, useStore, type RoutePoint } from "@/lib/store";
+import { searchPlaces } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import type { Category } from "@/lib/types";
 import { categoryColors } from "@/theme/colors";
@@ -53,6 +55,16 @@ export default function RouteScreen() {
   const [buffer, setBuffer] = useState<"2000" | "5000" | "10000">("5000");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stopQuery, setStopQuery] = useState("");
+  const [stopFound, setStopFound] = useState<{ q: string; rows: Awaited<ReturnType<typeof searchPlaces>> } | null>(null);
+  const stopResults = stopQuery.trim().length >= 2 && stopFound?.q === stopQuery ? stopFound.rows : null;
+  useEffect(() => {
+    if (stopQuery.trim().length < 2) return;
+    const h = setTimeout(() => {
+      searchPlaces(stopQuery, coords ?? undefined).then((rows) => setStopFound({ q: stopQuery, rows })).catch(() => setStopFound({ q: stopQuery, rows: [] }));
+    }, 300);
+    return () => clearTimeout(h);
+  }, [stopQuery, coords]);
   const planned = useRef<string | null>(null);
 
   // Adres arama
@@ -103,6 +115,12 @@ export default function RouteScreen() {
     return () => { alive = false; };
   }, [route, cats, buffer]);
 
+  // Rotaya eklenen duraklar listenin başında durur
+  const sortedAlong = useMemo(() => {
+    const list = along ?? [];
+    const isStop = (a: AlongPlace) => state.stops.some((x) => x.placeId === a.id);
+    return [...list.filter(isStop), ...list.filter((a) => !isStop(a))];
+  }, [along, state.stops]);
   const lineGeo = useMemo<GeoJSON.FeatureCollection>(() => ({ type: "FeatureCollection", features: route ? [{ type: "Feature", properties: {}, geometry: route.geometry }] : [] }), [route]);
   const pointsGeo = useMemo<GeoJSON.FeatureCollection>(() => {
     const pts = [state.from && { ...state.from, kind: "from" }, ...state.stops.map((s) => ({ ...s, kind: "stop" })), state.to && { ...state.to, kind: "to" }].filter(Boolean) as (RoutePoint & { kind: string })[];
@@ -144,7 +162,7 @@ export default function RouteScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ flex: route ? 0.55 : 1 }}>
+      <View style={{ flex: 1 }}>
         <BaseMap cameraRef={camera} onPress={() => setEditing(null)}>
           <GeoJSONSource id="route-line" data={lineGeo}>
             <Layer id="route-casing" type="line" layout={{ "line-cap": "round", "line-join": "round" }} paint={{ "line-color": "#FFFFFF", "line-width": 9 }} />
@@ -214,26 +232,63 @@ export default function RouteScreen() {
       </View>
 
       {route ? (
-        <View style={{ flex: 0.45, backgroundColor: colors.background }}>
-          <View style={{ flexDirection: "row", alignItems: "center", padding: 16, gap: 12 }}>
+        <BottomSheet header={
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4, gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Txt testID="route-summary" variant="title3">{t("route.summary", { distance: fmtDistance(t, route.distance_m, fmtNumber), duration: fmtDuration(t, route.duration_s) })}</Txt>
               <Txt variant="caption" color="tertiary">Powered by Geoapify</Txt>
             </View>
             <Button title={t("route.start")} size="medium" icon="directions"
               onPress={() => openRouteInGoogle([state.from!, ...state.stops, state.to!])} />
+          </View>}>
+          {/* İstediğin yeri ara ve durak ekle (rotaya uzaklığı fark etmez) */}
+          <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", height: 44, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, paddingHorizontal: 12, gap: 8 }}>
+              <Icon name="search" size={16} color={colors.textSecondary} />
+              <TextInput value={stopQuery} onChangeText={setStopQuery} placeholder={t("route.searchStop")} placeholderTextColor={colors.textTertiary}
+                style={[type.body, { flex: 1, color: colors.text, paddingVertical: 0 }]} autoCorrect={false} returnKeyType="search" />
+              {stopQuery ? <Pressable hitSlop={10} onPress={() => { setStopQuery(""); Keyboard.dismiss(); }}><Icon name="close" size={14} color={colors.textSecondary} /></Pressable> : null}
+            </View>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 10, paddingHorizontal: 16, paddingVertical: 6 }}>
-            {ALONG.map((c) => <Chip key={c} size="large" label={catLabel(t, c)} icon={c} color={categoryColors[c]} selected={cats.includes(c)} onPress={() => setCats(cats.includes(c) ? cats.filter((x) => x !== c) : [...cats, c])} />)}
-          </ScrollView>
-          <View style={{ paddingHorizontal: 16, paddingTop: 10, flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Txt variant="footnote" color="secondary">{t("route.corridor")}</Txt>
+          {stopResults ? (
+            <FlatList
+              data={stopResults}
+              keyboardShouldPersistTaps="handled"
+              keyExtractor={(r) => `s${r.id}`}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+              ListEmptyComponent={<Txt variant="subhead" color="secondary">{t("route.empty")}</Txt>}
+              renderItem={({ item }) => {
+                const p = { label: placeName(t, item), lat: item.lat, lng: item.lng, placeId: item.id };
+                const added = state.stops.some((x) => samePoint(x, p));
+                return (
+                  <Pressable onPress={() => router.push(`/place/${item.id}`)} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, opacity: pressed ? 0.7 : 1 })}>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: categoryColors[item.category], alignItems: "center", justifyContent: "center" }}>
+                      <Icon name={item.category} size={18} color="#FFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Txt variant="bodyMedium" numberOfLines={1}>{p.label}</Txt>
+                      <Txt variant="footnote" color="secondary" numberOfLines={1}>{[catLabel(t, item.category), item.province].filter(Boolean).join(" · ")}</Txt>
+                    </View>
+                    <StopToggle added={added} onPress={() => (added ? removeRouteStop(p) : addRouteStop(p) || setError(t("route.stopsFull", { n: MAX_STOPS })))} />
+                  </Pressable>
+                );
+              }}
+            />
+          ) : (<>
+          {/* Kategoriler ve mesafe ayrı, sabit yükseklikli satırlarda: üst üste binmez */}
+          <View style={{ height: 58, borderTopWidth: 0.5, borderTopColor: colors.separator }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 16, alignItems: "center", height: 58 }}>
+              {ALONG.map((c) => <Chip key={c} size="large" label={catLabel(t, c)} icon={c} color={categoryColors[c]} selected={cats.includes(c)} onPress={() => setCats(cats.includes(c) ? cats.filter((x) => x !== c) : [...cats, c])} />)}
+            </ScrollView>
+          </View>
+          <View style={{ height: 52, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 0.5, borderBottomColor: colors.separator }}>
+            <Txt variant="footnoteMedium" color="secondary">{t("route.corridor")}</Txt>
             <View style={{ flex: 1 }}>
               <Segmented value={buffer} onChange={setBuffer} options={[{ value: "2000", label: "2 km" }, { value: "5000", label: "5 km" }, { value: "10000", label: "10 km" }]} />
             </View>
           </View>
           <FlatList
-            data={along ?? []}
+            data={sortedAlong}
             keyExtractor={(a) => String(a.id)}
             contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
             ListEmptyComponent={along ? <Txt variant="subhead" color="secondary">{t("route.empty")}</Txt> : <ActivityIndicator color={colors.primary} />}
@@ -253,7 +308,8 @@ export default function RouteScreen() {
               </Pressable>
             )}
           />
-        </View>
+          </>)}
+        </BottomSheet>
       ) : null}
     </View>
   );

@@ -222,6 +222,7 @@ const en: Record<TKey, string> = {
   "route.noRoute": "No route found between these points.",
   "route.start": "Start navigation",
   "route.addStop": "Add as stop",
+  "route.searchStop": "Search a place to add as a stop",
   "route.stops": "Stops",
   "route.hint": "Choose where you're going and I'll show campsites, viewpoints and services along the way.",
 
@@ -312,6 +313,7 @@ const en: Record<TKey, string> = {
   "travelers.broadcastPlaceholder": "Hi! Does anyone know where to get water nearby?",
   "travelers.broadcastSent": "Your message was sent to {n} travelers.",
   "travelers.broadcastNoOne": "No one nearby can receive messages right now.",
+  "travelers.broadcastNeedVisible": "To send a message, first become visible on the Travelers screen.",
   "travelers.broadcastLimit": "You've reached today's message limit.",
   "travelers.inbox": "Incoming",
   "travelers.conversations": "Chats",

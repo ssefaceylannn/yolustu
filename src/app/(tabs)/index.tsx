@@ -318,8 +318,8 @@ export default function MapScreen() {
         </View>
       ) : null}
 
-      {/* Sağ alt: konum + yer ekle (+ liste aç) */}
-      <View style={{ position: "absolute", right: 12, bottom: bottomInset, gap: 10 }}>
+      {/* Sağ üst (arama ve kategorilerin altında): konum + yer ekle (+ liste aç); alttaki listeyle çakışmaz */}
+      <View style={{ position: "absolute", right: 12, top: insets.top + 118, gap: 10 }}>
         {scanned && !listOpen ? <IconButton name="list" label={t("map.showList")} onPress={() => setListOpen(true)} /> : null}
         <IconButton name="plus" label={t("map.addPlace")} onPress={() => router.push({ pathname: "/place/new", params: coords ? { lat: String(coords.lat), lng: String(coords.lng) } : {} })} />
         <IconButton name="locate" label={t("map.locate")} color={colors.primary} onPress={locate} />
