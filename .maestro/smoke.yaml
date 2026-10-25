@@ -29,14 +29,8 @@ appId: app.yolustu
 - tapOn:
     id: password
 - inputText: ${PASSWORD}
-- hideKeyboard
-- runFlow:
-    when:
-      visible: "Not Now"
-    commands:
-      - tapOn: "Not Now"
-- tapOn:
-    id: signin-submit
+# Şifre alanında klavyenin "Git" tuşu girişi gönderir
+- pressKey: Enter
 - runFlow:
     when:
       visible: "Not Now"
