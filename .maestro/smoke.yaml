@@ -7,11 +7,21 @@ appId: app.yolustu
       all: allow
 - extendedWaitUntil:
     visible:
-      id: welcome-signin
+      id: email
     timeout: 90000
-- takeScreenshot: 01-welcome
-- tapOn:
-    id: welcome-signin
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: welcome-signin
+    commands:
+      - tapOn:
+          id: welcome-signin
+- extendedWaitUntil:
+    visible:
+      id: email
+    timeout: 30000
+- takeScreenshot: 01-signin
 - tapOn:
     id: email
 - inputText: ${EMAIL}

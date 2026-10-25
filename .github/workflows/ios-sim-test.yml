@@ -100,5 +100,17 @@ jobs:
           echo "=== Uygulama hata kayıtları ==="
           xcrun simctl spawn "$UDID" log show --last 10m --predicate 'process == "Yolustu" AND (messageType == error OR messageType == fault)' --style compact 2>/dev/null \
             | grep -v "xctest" | tail -25 || true
+          echo "=== Ekrandaki öğeler (hata anı) ==="
+          maestro --device "$UDID" hierarchy 2>/dev/null | python3 -c "
+          import json,sys
+          try: d=json.load(sys.stdin)
+          except Exception: sys.exit(0)
+          out=[]
+          def walk(n):
+              a=n.get('attributes',{})
+              t=' | '.join(x for x in [a.get('resource-id',''),a.get('accessibilityText',''),a.get('text','')] if x)
+              if t and t not in out: out.append(t)
+              for c in n.get('children',[]): walk(c)
+          walk(d); print('\n'.join(out[:80]))" || true
           echo "=== Maestro ==="
           grep -vE "^\s*$" maestro.log 2>/dev/null | tail -60 || true
