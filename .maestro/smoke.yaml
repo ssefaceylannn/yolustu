@@ -30,8 +30,18 @@ appId: app.yolustu
     id: password
 - inputText: ${PASSWORD}
 - hideKeyboard
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
 - tapOn:
     id: signin-submit
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
 - extendedWaitUntil:
     visible:
       id: consent-terms
