@@ -40,7 +40,7 @@ jobs:
       # Uygulama kodu değişmediyse (sadece test senaryosu) önceki derleme kullanılır
       - name: Derleme önbelleği
         id: appcache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: sim-app
           key: sim-app-${{ hashFiles('src/**', 'assets/**', 'app.json', 'package-lock.json') }}
@@ -64,6 +64,13 @@ jobs:
             -sdk iphonesimulator -destination "generic/platform=iOS Simulator" -derivedDataPath build \
             CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES build | tail -n 80
           mkdir -p ../sim-app && cp -R build/Build/Products/Release-iphonesimulator/*.app ../sim-app/
+      # Test başarısız olsa da derleme saklansın
+      - name: Derlemeyi sakla
+        if: steps.appcache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: sim-app
+          key: ${{ steps.appcache.outputs.cache-primary-key }}
       - name: Simülatörü aç ve uygulamayı kur
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
@@ -93,12 +100,31 @@ jobs:
         run: |
           set -o pipefail
           export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000 MAESTRO_CLI_NO_ANALYTICS=1
+          # Tanıtım videosu: testin tamamı kaydedilir
+          xcrun simctl io "$UDID" recordVideo --codec=h264 --force demo.mp4 &
+          REC=$!
+          stop_rec() { kill -INT $REC 2>/dev/null; wait $REC 2>/dev/null || true; }
+          trap stop_rec EXIT
           for i in 1 2; do
             if maestro --device "$UDID" test .maestro/smoke.yaml -e EMAIL="$TEST_EMAIL" -e PASSWORD="$TEST_PASS" --test-output-dir maestro-out --debug-output maestro-debug 2>&1 | tee maestro.log; then exit 0; fi
             grep -q "driver not ready" maestro.log || exit 1
             echo "Sürücü hazır değildi, tekrar deneniyor"
           done
           exit 1
+      - name: Videoyu küçült
+        if: always()
+        run: |
+          ls -la demo.mp4 || exit 0
+          mkdir -p video
+          # iPhone'da rahat oynasın: 720p, H.264
+          if command -v ffmpeg >/dev/null; then ffmpeg -loglevel error -y -i demo.mp4 -vf "scale=-2:1280" -c:v libx264 -preset veryfast -crf 26 -movflags +faststart video/yolustu-iphone-demo.mp4 || cp demo.mp4 video/yolustu-iphone-demo.mp4; else cp demo.mp4 video/yolustu-iphone-demo.mp4; fi
+          ls -la video
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-demo-video
+          path: video/yolustu-iphone-demo.mp4
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -132,3 +158,27 @@ jobs:
           walk(d); print('\n'.join(out[:80]))" || true
           echo "=== Maestro ==="
           grep -vE "^\s*$" maestro.log 2>/dev/null | tail -60 || true
+
+  # Videoyu indirilebilir yere koy (Releases → iPhone tanıtım videosu)
+  video:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-demo-video
+          path: out
+        continue-on-error: true
+      - name: Yayınla
+        if: hashFiles('out/yolustu-iphone-demo.mp4') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-demo
+          name: "iPhone tanıtım videosu"
+          body: "Uygulamanın iPhone simülatöründe çalışırken kaydı (${{ github.sha }})."
+          prerelease: true
+          make_latest: false
+          files: out/yolustu-iphone-demo.mp4

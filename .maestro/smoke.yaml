@@ -53,12 +53,20 @@ appId: app.yolustu
       id: area-count
     timeout: 90000
 - takeScreenshot: 02-map-list
+- extendedWaitUntil:
+    visible: "__bekle__"
+    timeout: 2500
+    optional: true
 - assertVisible:
     id: place-row
 - tapOn:
     id: place-row
     index: 0
 - takeScreenshot: 03-selected
+- extendedWaitUntil:
+    visible: "__bekle__"
+    timeout: 2500
+    optional: true
 
 # Filtre: seçim anında uygulanmalı
 - tapOn:
@@ -71,6 +79,10 @@ appId: app.yolustu
       id: area-count
     timeout: 30000
 - takeScreenshot: 04-filtered
+- extendedWaitUntil:
+    visible: "__bekle__"
+    timeout: 2500
+    optional: true
 - tapOn:
     id: open-filters
 - tapOn: "Campsite"
@@ -92,6 +104,10 @@ appId: app.yolustu
     visible: "Stops"
     timeout: 15000
 - takeScreenshot: 05-route-stops
+- extendedWaitUntil:
+    visible: "__bekle__"
+    timeout: 2500
+    optional: true
 - tapOn:
     id: route-from
 - tapOn:
@@ -113,6 +129,10 @@ appId: app.yolustu
       id: route-summary
     timeout: 60000
 - takeScreenshot: 06-route
+- extendedWaitUntil:
+    visible: "__bekle__"
+    timeout: 2500
+    optional: true
 # Durak − ile çıkarılır
 - tapOn:
     id: stop-remove
@@ -134,3 +154,7 @@ appId: app.yolustu
     visible: "Directions"
     timeout: 30000
 - takeScreenshot: 07-place
+- extendedWaitUntil:
+    visible: "__bekle__"
+    timeout: 2500
+    optional: true
